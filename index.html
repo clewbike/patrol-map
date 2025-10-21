@@ -1,3 +1,71 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>準備OK</title></head>
-<body>GitHub Pages の準備OK（後で差し替えます）</body></html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>巡回マップ</title>
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <style>
+    html, body, #map { height:100%; margin:0; }
+    .legend { position:absolute; bottom:16px; left:16px; background:rgba(255,255,255,.9); padding:8px 10px; border-radius:8px; font:12px/1.4 sans-serif; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+    .badge { display:inline-block; min-width:1.6em; text-align:center; padding:2px 6px; border-radius:10px; background:#eee; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="legend" id="legend">読み込み中…</div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script>
+    const MAP = L.map('map', { zoomControl:true });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(MAP);
+    const markersLayer = L.layerGroup().addTo(MAP);
+
+    function colorByWeight(w){
+      if (w >= 15) return '#8b0000';
+      if (w >= 10) return '#d73027';
+      if (w >= 7)  return '#fc8d59';
+      if (w >= 5)  return '#fee08b';
+      if (w >= 3)  return '#d9ef8b';
+      if (w >= 1)  return '#91cf60';
+      return '#1a9850';
+    }
+    function radiusByCount(c){ return Math.max(6, Math.min(20, 6 + (Number(c)||0) * 2)); }
+
+    async function loadData(){
+      const res = await fetch('data.json?t=' + Date.now());
+      if(!res.ok) throw new Error('data.jsonを取得できません');
+      return res.json();
+    }
+    function render(data){
+      markersLayer.clearLayers();
+      const bounds = [];
+      (data.items || []).forEach(({lat,lng,name,updated,weight,count}) => {
+        const html = `
+          <div><strong>${name}</strong></div>
+          <div>更新: ${updated}</div>
+          <div>電池交換比重: <span class="badge">${weight}</span></div>
+          <div>目安交換台数: <strong>${count}</strong></div>
+          <div>緯度経度: ${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}</div>
+          <div style="margin-top:8px">
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking" target="_blank" rel="noopener">徒歩経路</a>
+            &nbsp;|&nbsp;
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving" target="_blank" rel="noopener">車経路</a>
+          </div>`;
+        const m = L.circleMarker([lat,lng], {
+          radius: radiusByCount(count), color:'#333', weight:1,
+          fillColor: colorByWeight(weight), fillOpacity:0.85
+        }).bindPopup(html);
+        m.addTo(markersLayer);
+        bounds.push([lat,lng]);
+      });
+      if(bounds.length){ MAP.fitBounds(bounds, {padding:[20,20]}); } else { MAP.setView([35.0,135.75], 12); }
+      document.getElementById('legend').innerHTML =
+        `<div><strong>巡回マップ</strong></div>
+         <div>地点数: ${data.items?.length||0}</div>
+         <div>生成: ${data.generated_at||'-'}</div>`;
+    }
+    (async ()=>{ try{ render(await loadData()); }catch(e){ alert(e.message); MAP.setView([35.0,135.75], 12);} })();
+  </script>
+</body>
+</html>
