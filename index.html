@@ -20,15 +20,11 @@
   <script>
     const MAP = L.map('map', { zoomControl:true });
     L.tileLayer(
-  'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-  {
-    subdomains: 'abcd',
-    maxZoom: 20,
-    detectRetina: true,
-    attribution:
-      '&copy; OpenStreetMap contributors &copy; CARTO'
-  }
-).addTo(MAP);
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      { maxZoom: 20, detectRetina: true,
+        attribution: 'Tiles &copy; Esri & contributors' }
+    ).addTo(MAP);
+    
     const markersLayer = L.layerGroup().addTo(MAP);
 
     function colorByWeight(w){
