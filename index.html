@@ -12,7 +12,7 @@
       height: 100%;
       margin: 0;
     }
-  
+
     /* 左下の情報パネル（巡回マップ 更新日時） */
     #legend {
       position: absolute;
@@ -25,18 +25,7 @@
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       z-index: 1000; /* 地図の上に重ねて表示 */
     }
-  
-    .legend {
-      position: absolute;
-      bottom: 16px;
-      left: 16px;
-      background: rgba(255,255,255,0.9);
-      padding: 8px 10px;
-      border-radius: 8px;
-      font: 12px/1.4 sans-serif;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    }
-  
+
     .badge {
       display: inline-block;
       min-width: 1.6em;
@@ -49,7 +38,8 @@
 </head>
 <body>
   <div id="map"></div>
-  <div class="legend" id="legend">読み込み中…</div>
+  <div id="legend">読み込み中…</div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script>
     const MAP = L.map('map', { zoomControl:true });
@@ -58,7 +48,7 @@
       { maxZoom: 20, detectRetina: true,
         attribution: 'Tiles &copy; Esri & contributors' }
     ).addTo(MAP);
-    
+
     const markersLayer = L.layerGroup().addTo(MAP);
 
     function colorByWeight(w){
@@ -70,6 +60,7 @@
       if (w >= 1)  return '#91cf60';
       return '#1a9850';
     }
+
     function radiusByCount(c){ return Math.max(6, Math.min(20, 6 + (Number(c)||0) * 2)); }
 
     async function loadData(){
@@ -77,6 +68,7 @@
       if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
+
     function render(data){
       markersLayer.clearLayers();
       const bounds = [];
@@ -101,10 +93,10 @@
       });
 
       if (bounds.length) {
-  MAP.fitBounds(bounds, { padding: [20, 20] });
-} else {
-  MAP.setView([35.0, 135.75], 12);
-}
+        MAP.fitBounds(bounds, { padding: [20, 20] });
+      } else {
+        MAP.setView([35.0, 135.75], 12);
+      }
 
       // JSON全体の「updated」列から最新の更新日時を取得して表示
       const latest = (data.items || [])
@@ -112,11 +104,21 @@
         .filter(Boolean)
         .sort()
         .reverse()[0] || '-';
-      
+
       document.getElementById('legend').innerHTML =
-        `<div><strong>巡回マップ 更新日時：${latest}</strong></div>`;
-      
-    (async ()=>{ try{ render(await loadData()); }catch(e){ alert(e.message); MAP.setView([35.0,135.75], 12);} })();
+        `<strong>巡回マップ 更新日時：${latest}</strong>`;
+    }
+
+    // ✅ ページ読み込み時にデータを取得して描画
+    (async ()=>{
+      try{
+        const data = await loadData();
+        render(data);
+      }catch(e){
+        alert(e.message);
+        MAP.setView([35.0,135.75], 12);
+      }
+    })();
   </script>
 </body>
 </html>
