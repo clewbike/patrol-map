@@ -12,7 +12,7 @@
   <style>
     html, body, #map { height:100%; margin:0; }
 
-    /* 🔹右下の更新日時 */
+    /* 🔹右下の更新日時（クレジットは枠外に分離） */
     #legend {
       position:absolute;
       bottom:8px;
@@ -30,7 +30,24 @@
       line-height:1.5;
     }
 
-    /* 🔹左上の凡例（簡素化） */
+    /* 🔹クレジット（更新日時の枠“外”に小さく表示） */
+    #credit {
+      position:absolute;
+      bottom:8px;
+      left:8px;
+      font-size:10px;
+      opacity:.8;
+      color:#333;
+      background:rgba(255,255,255,.85);
+      padding:3px 6px;
+      border-radius:6px;
+      font-family:"Segoe UI","Helvetica Neue",sans-serif;
+      box-shadow:0 1px 3px rgba(0,0,0,.15);
+      z-index:900;
+      pointer-events:none;
+    }
+
+    /* 🔹左上の凡例（簡素化/指定文言） */
     #legend-top {
       position:absolute;
       top:8px;
@@ -56,16 +73,16 @@
       font-size:11px;
     }
 
-    .leaflet-interactive {
-      stroke:#fff !important;
-      stroke-width:1.2 !important;
-    }
+    /* 赤マーカーの視認性UP（白縁） */
+    .leaflet-interactive { stroke:#fff !important; stroke-width:1.2 !important; }
 
-    .leaflet-control-zoom { display:none !important; } /* ＋/−ボタン非表示 */
-    .leaflet-control-attribution { display:none !important; } /* 標準クレジット非表示 */
+    /* ズーム＋/−を非表示・標準クレジットは隠す（自前で表示） */
+    .leaflet-control-zoom { display:none !important; }
+    .leaflet-control-attribution { display:none !important; }
   </style>
 </head>
 <body>
+  <!-- 地図 -->
   <div id="map"></div>
 
   <!-- 左上：凡例 -->
@@ -75,8 +92,11 @@
     <div><span style="color:#bfe3bf;font-weight:bold;">●</span> 様子見</div>
   </div>
 
-  <!-- 右下：更新日時＋クレジット（旧デザインに戻す） -->
+  <!-- 右下：更新日時のみ -->
   <div id="legend">読み込み中…</div>
+
+  <!-- 左下：クレジット（枠外） -->
+  <div id="credit">&copy; OpenStreetMap contributors | &copy; MapTiler</div>
 
   <!-- Leaflet本体 -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
@@ -88,8 +108,7 @@
     const MAPTILER_KEY = '338nRvmyu8orXOAOfEe6';
 
     /* =====================================================
-       🗺 日本語ラベルの明るいマップ
-       jp-mierune-color（日本語・ピンク寄りで見やすい）
+       🗺 日本語ラベル・明るめ（jp-mierune-color）
     ===================================================== */
     const MAP = L.map('map', { zoomControl:false });
     L.tileLayer(
@@ -99,32 +118,41 @@
       }
     ).addTo(MAP);
 
+    // ピン用レイヤー
     const markersLayer = L.layerGroup().addTo(MAP);
 
     /* =====================================================
-       🎨 ピン色ルール
+       🎨 ピン色ルール（ご指定）
+       - 要交換：赤（count>=3 または weight>=10）
+       - 交換推奨：黄（weight==5）
+       - 様子見：淡緑（weight 3〜4）
+       - 非表示：weight 1〜2 / 0以下
     ===================================================== */
     function colorBy(weight, count) {
       const w = Number(weight)||0;
       const c = Number(count)||0;
-      if (w <= 2) return null;         // 1〜2は非表示
+      if (w <= 2) return null;         // 1〜2は非表示（0以下も含む）
+
       if (c >= 3) return '#ff0000';    // 要交換（台数優先）
-      if (w >= 10) return '#cc0000';   // 濃赤
+      if (w >= 10) return '#cc0000';   // 要交換（比重高）濃赤
       if (w === 5) return '#ffcc66';   // 交換推奨（黄）
       if (w >= 3)  return '#bfe3bf';   // 様子見（淡緑）
       return null;
     }
 
+    /* 台数でサイズ可変（据え置き） */
     function radiusByCount(c){
       return Math.max(6, Math.min(20, 6 + (Number(c)||0) * 2));
     }
 
+    /* JSON取得 */
     async function loadData(){
       const res = await fetch('data.json?_=' + Date.now());
       if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
 
+    /* 描画 */
     function render(data){
       markersLayer.clearLayers();
       const bounds = [];
@@ -133,16 +161,21 @@
         const fill = colorBy(weight, count);
         if (!fill) return;
 
+        // 🔴「要交換」バッジ（count>=3 or weight>=10 のとき）
+        const urgent = (Number(count) >= 3) || (Number(weight) >= 10);
+        const statusBadge = urgent
+          ? `<span style="display:inline-block;background:#ff0000;color:#fff;border-radius:10px;padding:2px 6px;font-size:11px;font-weight:bold;">要交換</span>`
+          : ``;
+
+        // ポップアップ（徒歩経路は削除。車経路のみ）
         const html = `
-          <div><strong>${name}</strong></div>
+          <div><strong>${name}</strong> ${statusBadge}</div>
           <div>更新: ${updated}</div>
           <div>電池交換比重: <span class="badge">${weight}</span></div>
           <div>目安交換台数: <strong>${count}</strong></div>
           <div>緯度経度: ${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}</div>
           <div style="margin-top:8px">
-            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking" target="_blank" rel="noopener">徒歩経路</a>
-            &nbsp;|&nbsp;
-            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving" target="_blank" rel="noopener">車経路</a>
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving" target="_blank" rel="noopener">車経路（GoogleMAP）</a>
           </div>`;
 
         const m = L.circleMarker([lat, lng], {
@@ -163,35 +196,25 @@
         MAP.setView([35.0,135.75], 12);
       }
 
-      // 🔹更新日時表示＋旧クレジット（小さめ文字）
+      // 右下：更新日時（クレジットは別divで表示）
       const latest = (data.items || [])
         .map(v => v.updated)
         .filter(Boolean)
         .sort()
         .reverse()[0] || '-';
-      document.getElementById('legend').innerHTML =
-        `<strong>更新日時：${latest}</strong><br>
-         <span style="font-size:10px;opacity:0.8;">&copy; OpenStreetMap contributors | &copy; MapTiler</span>`;
+      document.getElementById('legend').innerHTML = `<strong>更新日時：${latest}</strong>`;
     }
 
+    // 初回
     (async ()=>{
-      try {
-        const data = await loadData();
-        render(data);
-      } catch(e) {
-        alert(e.message);
-        MAP.setView([35.0,135.75], 12);
-      }
+      try { render(await loadData()); }
+      catch(e){ alert(e.message); MAP.setView([35.0,135.75], 12); }
     })();
 
+    // 5分ごとに JSON だけ更新
     setInterval(async ()=>{
-      try {
-        const data = await loadData();
-        render(data);
-        console.log('✅ data.json を再取得しました');
-      } catch(e) {
-        console.warn('⚠️ data.json 更新失敗:', e);
-      }
+      try { render(await loadData()); }
+      catch(e){ console.warn('data.json 更新失敗:', e); }
     }, 300000);
   </script>
 </body>
