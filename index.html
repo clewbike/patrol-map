@@ -19,7 +19,16 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script>
     const MAP = L.map('map', { zoomControl:true });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(MAP);
+    L.tileLayer(
+  'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  {
+    subdomains: 'abcd',
+    maxZoom: 20,
+    detectRetina: true,
+    attribution:
+      '&copy; OpenStreetMap contributors &copy; CARTO'
+  }
+).addTo(MAP);
     const markersLayer = L.layerGroup().addTo(MAP);
 
     function colorByWeight(w){
