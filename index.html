@@ -1,64 +1,68 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta http-equiv="refresh" content="300">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>巡回マップ</title>
+  <title>電池交換マップ</title>
   <meta name="robots" content="noindex,nofollow">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
 
   <style>
-    html, body, #map {
-      height: 100%;
-      margin: 0;
-    }
-  
-    /* 🔹右下の更新日時パネル */
-    #legend {
-      position: absolute;
-      bottom: 8px;
-      right: 8px;
-      background: rgba(0, 0, 0, 0.75);  /* 少し透ける黒背景 */
-      color: #fff;
-      padding: 3px 8px;                 /* 小さめ余白 */
-      border-radius: 4px;
-      font-size: 10px;                  /* 小さめフォント */
-      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-      z-index: 1000;
-      pointer-events: none;             /* ←クリックを通す（邪魔しない） */
-    }
-  
-    /* ポップアップ内のバッジ */
-    .badge {
-      display: inline-block;
-      min-width: 1.6em;
-      text-align: center;
-      padding: 1px 4px;
-      border-radius: 8px;
-      background: #eee;
-      font-size: 11px;
-    }
-  
-    /* 🔹Leaflet コピーライト非表示 */
-    .leaflet-control-attribution {
-      display: none !important;
-    }
-  </style>
+    html, body, #map { height:100%; margin:0; }
 
+    /* 右下の更新日時パネル（小さめ・邪魔しない） */
+    #legend {
+      position:absolute;
+      bottom:8px;
+      right:8px;
+      background:rgba(0,0,0,.75);
+      color:#fff;
+      padding:3px 8px;
+      border-radius:4px;
+      font-size:10px;
+      font-family:"Segoe UI","Helvetica Neue",sans-serif;
+      box-shadow:0 1px 3px rgba(0,0,0,.3);
+      z-index:1000;
+      pointer-events:none; /* 地図操作の邪魔をしない */
+    }
+
+    .badge {
+      display:inline-block;
+      min-width:1.6em;
+      text-align:center;
+      padding:1px 4px;
+      border-radius:8px;
+      background:#eee;
+      font-size:11px;
+    }
+
+    /* Leaflet標準の帰属表示は隠す場合、代替表記を legend 下に表示してください */
+    /* .leaflet-control-attribution { display:none !important; } */
+  </style>
 </head>
 <body>
   <div id="map"></div>
-  <div id="legend">読み込み中…</div>
+  <div id="legend">読み込み中…<br>
+    <span style="opacity:.7;font-size:9px;">© OpenStreetMap contributors, © MapTiler</span>
+  </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
   <script>
+    // ▶▶▶ ここに MapTiler の API キーを入れてください
+    const MAPTILER_KEY = "338nRvmyu8orXOAOfEe6";
+
+    // 地図生成（MapTiler Pastel スタイル：ピンク調）
     const MAP = L.map('map', { zoomControl:true });
     L.tileLayer(
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-      { maxZoom: 20, detectRetina: true,
-        attribution: 'Tiles &copy; Esri & contributors' }
+      `https://api.maptiler.com/maps/pastel/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+      {
+        maxZoom: 20,
+        tileSize: 512,      // MapTiler推奨（512pxタイル）
+        zoomOffset: -1,     // Leafletとのズーム補正
+        attribution: '&copy; OpenStreetMap contributors | &copy; MapTiler'
+      }
     ).addTo(MAP);
 
     const markersLayer = L.layerGroup().addTo(MAP);
@@ -72,18 +76,21 @@
       if (w >= 1)  return '#91cf60';
       return '#1a9850';
     }
-
-    function radiusByCount(c){ return Math.max(6, Math.min(20, 6 + (Number(c)||0) * 2)); }
+    function radiusByCount(c){
+      return Math.max(6, Math.min(20, 6 + (Number(c)||0) * 2));
+    }
 
     async function loadData(){
-      const res = await fetch('data.json?t=' + Date.now());
-      if(!res.ok) throw new Error('data.jsonを取得できません');
+      const res = await fetch('data.json?_=' + Date.now()); // キャッシュ回避
+      if(!res.ok) throw new Error('data.json を取得できません');
       return res.json();
     }
 
     function render(data){
+      // マーカー再描画
       markersLayer.clearLayers();
       const bounds = [];
+
       (data.items || []).forEach(({lat,lng,name,updated,weight,count}) => {
         const html = `
           <div><strong>${name}</strong></div>
@@ -97,20 +104,22 @@
             <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving" target="_blank" rel="noopener">車経路</a>
           </div>`;
         const m = L.circleMarker([lat,lng], {
-          radius: radiusByCount(count), color:'#333', weight:1,
-          fillColor: colorByWeight(weight), fillOpacity:0.85
+          radius: radiusByCount(count),
+          color:'#333', weight:1,
+          fillColor: colorByWeight(weight),
+          fillOpacity:0.85
         }).bindPopup(html);
         m.addTo(markersLayer);
         bounds.push([lat,lng]);
       });
 
       if (bounds.length) {
-        MAP.fitBounds(bounds, { padding: [20, 20] });
+        MAP.fitBounds(bounds, { padding:[20,20] });
       } else {
-        MAP.setView([35.0, 135.75], 12);
+        MAP.setView([35.0,135.75], 12);
       }
 
-      // JSON全体の「updated」列から最新の更新日時を取得して表示
+      // 右下の更新日時（JSONの updated の最大値）
       const latest = (data.items || [])
         .map(v => v.updated)
         .filter(Boolean)
@@ -118,19 +127,31 @@
         .reverse()[0] || '-';
 
       document.getElementById('legend').innerHTML =
-        `<strong>更新日時：${latest}</strong>`;
+        `<strong>更新日時：${latest}</strong><br>
+         <span style="opacity:.7;font-size:9px;">© OpenStreetMap contributors, © MapTiler</span>`;
     }
 
-    // ✅ ページ読み込み時にデータを取得して描画
-    (async ()=>{
-      try{
+    // 初回描画
+    (async () => {
+      try {
         const data = await loadData();
         render(data);
-      }catch(e){
+      } catch (e) {
+        console.error(e);
         alert(e.message);
         MAP.setView([35.0,135.75], 12);
       }
     })();
+
+    // 5分ごとに JSON だけ再取得して再描画（ページはリロードしない）
+    setInterval(async () => {
+      try {
+        const data = await loadData();
+        render(data);
+      } catch (e) {
+        console.error('データ更新失敗:', e);
+      }
+    }, 300000); // 300,000ms = 5分
   </script>
 </body>
 </html>
