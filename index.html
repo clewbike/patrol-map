@@ -6,63 +6,64 @@
   <title>電池交換マップ</title>
   <meta name="robots" content="noindex,nofollow">
 
-  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
 
   <style>
-    html, body, #map { height:100%; margin:0; }
+    html, body, #map { height: 100%; margin: 0; }
 
-    /* 右下の更新日時パネル（小さめ・邪魔しない） */
+    /* 🔹右下の更新日時パネル */
     #legend {
-      position:absolute;
-      bottom:8px;
-      right:8px;
-      background:rgba(0,0,0,.75);
-      color:#fff;
-      padding:3px 8px;
-      border-radius:4px;
-      font-size:10px;
-      font-family:"Segoe UI","Helvetica Neue",sans-serif;
-      box-shadow:0 1px 3px rgba(0,0,0,.3);
-      z-index:1000;
-      pointer-events:none; /* 地図操作の邪魔をしない */
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+      pointer-events: none;
+      line-height: 1.4;
     }
 
     .badge {
-      display:inline-block;
-      min-width:1.6em;
-      text-align:center;
-      padding:1px 4px;
-      border-radius:8px;
-      background:#eee;
-      font-size:11px;
+      display: inline-block;
+      min-width: 1.6em;
+      text-align: center;
+      padding: 1px 4px;
+      border-radius: 8px;
+      background: #eee;
+      font-size: 11px;
     }
 
-    /* Leaflet標準の帰属表示は隠す場合、代替表記を legend 下に表示してください */
-    /* .leaflet-control-attribution { display:none !important; } */
+    /* 🔹Leaflet標準の帰属を非表示にする */
+    .leaflet-control-attribution { display: none !important; }
   </style>
 </head>
 <body>
   <div id="map"></div>
-  <div id="legend">読み込み中…<br>
-    <span style="opacity:.7;font-size:9px;">© OpenStreetMap contributors, © MapTiler</span>
-  </div>
+  <div id="legend">読み込み中…</div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
   <script>
-    // ▶▶▶ ここに MapTiler の API キーを入れてください
+    // 🔑 MapTiler APIキーを設定してください
     const MAPTILER_KEY = "338nRvmyu8orXOAOfEe6";
 
-    // 地図生成（MapTiler Pastel スタイル：ピンク調）
-    const MAP = L.map('map', { zoomControl:true });
-    L.tileLayer(
-      `https://api.maptiler.com/maps/pastel/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
-      {
-        maxZoom: 20,
-        tileSize: 512,      // MapTiler推奨（512pxタイル）
-        zoomOffset: -1,     // Leafletとのズーム補正
-        attribution: '&copy; OpenStreetMap contributors | &copy; MapTiler'
-      }
+    // 地図を作成（Leafletの標準帰属を無効化）
+    const MAP = L.map('map', { zoomControl:true, attributionControl:false });
+
+    // ベース：落ち着いた日本語グレーマップ
+    const baseLayer = L.tileLayer(
+      `https://api.maptiler.com/maps/jp-mierune-gray/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+      { maxZoom:20, tileSize:512, zoomOffset:-1 }
+    ).addTo(MAP);
+
+    // 山の陰影を追加（hillshadeを半透明で重ねる）
+    const hillshade = L.tileLayer(
+      `https://api.maptiler.com/tiles/hillshade/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+      { maxZoom:20, opacity:0.35 }
     ).addTo(MAP);
 
     const markersLayer = L.layerGroup().addTo(MAP);
@@ -76,18 +77,18 @@
       if (w >= 1)  return '#91cf60';
       return '#1a9850';
     }
+
     function radiusByCount(c){
       return Math.max(6, Math.min(20, 6 + (Number(c)||0) * 2));
     }
 
     async function loadData(){
-      const res = await fetch('data.json?_=' + Date.now()); // キャッシュ回避
-      if(!res.ok) throw new Error('data.json を取得できません');
+      const res = await fetch('data.json?_=' + Date.now());
+      if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
 
     function render(data){
-      // マーカー再描画
       markersLayer.clearLayers();
       const bounds = [];
 
@@ -119,39 +120,39 @@
         MAP.setView([35.0,135.75], 12);
       }
 
-      // 右下の更新日時（JSONの updated の最大値）
+      // JSON全体から最新更新日時を取得
       const latest = (data.items || [])
         .map(v => v.updated)
         .filter(Boolean)
         .sort()
         .reverse()[0] || '-';
 
+      // 右下のラベルに更新日時＋帰属を表示
       document.getElementById('legend').innerHTML =
         `<strong>更新日時：${latest}</strong><br>
          <span style="opacity:.7;font-size:9px;">© OpenStreetMap contributors, © MapTiler</span>`;
     }
 
     // 初回描画
-    (async () => {
+    (async ()=>{
       try {
         const data = await loadData();
         render(data);
-      } catch (e) {
-        console.error(e);
+      } catch(e) {
         alert(e.message);
         MAP.setView([35.0,135.75], 12);
       }
     })();
 
-    // 5分ごとに JSON だけ再取得して再描画（ページはリロードしない）
-    setInterval(async () => {
+    // 5分ごとにデータのみ更新（ページリロードなし）
+    setInterval(async ()=>{
       try {
         const data = await loadData();
         render(data);
-      } catch (e) {
+      } catch(e) {
         console.error('データ更新失敗:', e);
       }
-    }, 300000); // 300,000ms = 5分
+    }, 300000);
   </script>
 </body>
 </html>
