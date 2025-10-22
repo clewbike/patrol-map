@@ -21,7 +21,7 @@
       box-shadow:0 1px 4px rgba(0,0,0,.25); z-index:1000; user-select:none;
     }
 
-    /* 右下：更新日時（クレジットはこの下に自動配置） */
+    /* 右下：更新日時 */
     #legend{
       position:absolute; bottom:8px; right:8px;
       background:rgba(0,0,0,.78); color:#fff;
@@ -31,18 +31,16 @@
       max-width:60vw;
     }
 
-    /* クレジット：枠なし極小。JSでlegendの下に自動配置（重なり防止） */
+    /* クレジット：枠なし極小。legendの下に自動配置 */
     #credit {
-      position:absolute; right:8px; bottom:8px;  /* 初期値。JSで再配置 */
+      position:absolute; right:8px; bottom:8px;
       font:10px/1 "Segoe UI","Helvetica Neue",sans-serif;
       color:#ddd; z-index:1001; pointer-events:auto; white-space:nowrap;
     }
     #credit a { color:#ddd; text-decoration:none; }
 
-    /* ピンの小バッジ */
     .badge{ display:inline-block; min-width:1.6em; text-align:center; padding:1px 4px; border-radius:8px; background:#eee; font-size:11px; }
 
-    /* 視認性強化：白縁、標準帰属非表示（自前creditで表記） */
     .leaflet-interactive{ stroke:#fff !important; stroke-width:1.4 !important; }
     .leaflet-control-zoom{ display:none !important; }
     .leaflet-control-attribution{ display:none !important; }
@@ -51,17 +49,14 @@
 <body>
   <div id="map"></div>
 
-  <!-- 左上：凡例（タイトル無しで簡素） -->
   <div id="legend-top">
     <span style="color:#e60026;font-weight:bold;">●</span> 要交換<br>
     <span style="color:#ff8c00;font-weight:bold;">●</span> 交換推奨<br>
     <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見
   </div>
 
-  <!-- 右下：更新日時 -->
   <div id="legend">読み込み中…</div>
 
-  <!-- クレジット（legendの下に自動配置） -->
   <div id="credit">
     © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> /
     © <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OSM</a> /
@@ -69,59 +64,46 @@
   </div>
 
   <script>
-    /* ====== ベース地図：CARTO Light（英語ラベル無し版） ======
-       - light_nolabels：道路・川・建物などの地物は明快、ラベルは含まない
-       - この上に「日本語ラベル（GSI）」と「陰影（GSI relief）」を重ねます
-    =========================================================== */
+    /* === CARTO Light（明るさを少し落として自然なトーン） === */
     const MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 12);
 
-    const cartoNoLabels = L.tileLayer(
+    const cartoBase = L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
       { maxZoom: 20, subdomains: 'abcd', attribution: '' }
     ).addTo(MAP);
 
-    /* ====== 山の陰影（見やすさUP）：GSI relief（半透明） ====== */
+    /* 陰影レイヤ（山をうっすら） */
     const relief = L.tileLayer(
       'https://cyberjapandata.gsi.go.jp/xyz/relief/{z}/{x}/{y}.png',
       { maxZoom: 15, opacity: 0.25 }
     ).addTo(MAP);
 
-    /* ====== 日本語ラベル：GSI 注記レイヤ（透明） ======
-       - これにより、ズームアウト時も日本語で統一されます
-       - 軽くするため opacity を少し下げています
-    ===================================================== */
+    /* 日本語ラベル：注記レイヤ */
     const gsiLabel = L.tileLayer(
       'https://cyberjapandata.gsi.go.jp/xyz/label/{z}/{x}/{y}.png',
-      { maxZoom: 18, opacity: 0.9 }
+      { maxZoom: 18, opacity: 1.0 }
     ).addTo(MAP);
 
-    // マーカー用レイヤ
     const markersLayer = L.layerGroup().addTo(MAP);
 
-    /* ====== ピン色ルール（更新） ======
-       - 要交換：赤（count>=2 または weight>=10）
-       - 交換推奨：橙（weight==5）
-       - 様子見：淡緑（weight 3〜4）
-       - 非表示：weight<=2 かつ count<2
-    =================================== */
+    /* ピン色ルール */
     function colorBy(weight, count){
       const w = Number(weight)||0, c = Number(count)||0;
-      if (c >= 2) return '#e60026';    // 台数優先：要交換（鮮赤）
+      if (c >= 2) return '#e60026';    // 台数優先：要交換（赤）
       if (w >= 10) return '#b3001f';   // 比重高：要交換（濃赤）
       if (w === 5) return '#ff8c00';   // 交換推奨（橙）
       if (w >= 3)  return '#b7e1a1';   // 様子見（淡緑）
-      return null;                     // それ以外は非表示
+      return null;
     }
+
     function radiusByCount(c){ return Math.max(6, Math.min(22, 6 + (Number(c)||0) * 2)); }
 
-    /* ====== JSON取得 ====== */
     async function loadData(){
-      const res = await fetch('data.json?_=' + Date.now()); // キャッシュ回避
+      const res = await fetch('data.json?_=' + Date.now());
       if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
 
-    /* ====== 描画 ====== */
     function render(data){
       markersLayer.clearLayers();
       const bounds = [];
@@ -158,30 +140,30 @@
 
       if (bounds.length) { MAP.fitBounds(bounds, {padding:[20,20]}); }
 
-      // 右下：更新日時
       const latest = (data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0] || '-';
       document.getElementById('legend').innerHTML = `<strong>更新日時：${latest}</strong>`;
 
-      // クレジットを legend の真下に自動配置（重なり防止）
       placeCreditUnderLegend();
     }
 
     function placeCreditUnderLegend(){
       const leg = document.getElementById('legend');
       const cred = document.getElementById('credit');
-      const extra = 6; // 余白
+      const extra = 8; // 余白
       const bottom = 8 + leg.offsetHeight + extra;
-      cred.style.right = '8px';
       cred.style.bottom = bottom + 'px';
+      cred.style.right = '8px';
     }
 
-    // 初回 & 5分ごとの JSON だけ更新
+    // 初回 & 5分ごとに JSONのみ更新
     (async ()=>{ try{ render(await loadData()); }catch(e){ alert(e.message); } })();
-    setInterval(async ()=>{ try{ render(await loadData()); placeCreditUnderLegend(); }catch(e){} }, 300000);
+    setInterval(async ()=>{ try{ render(await loadData()); }catch(e){} }, 300000);
 
-    // サイズが変わっても追従
+    // legend更新やサイズ変更で位置再調整
+    const legend = document.getElementById('legend');
+    new ResizeObserver(placeCreditUnderLegend).observe(legend);
+    new MutationObserver(placeCreditUnderLegend).observe(legend, { childList:true });
     window.addEventListener('resize', placeCreditUnderLegend);
-    new ResizeObserver(placeCreditUnderLegend).observe(document.getElementById('legend'));
   </script>
 </body>
 </html>
