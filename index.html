@@ -1,46 +1,35 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <!-- 🔁 5分ごとに自動リロード（最新データ反映用） -->
-  <meta http-equiv="refresh" content="300">
+  <!-- 🧭 metaリロードは削除。JSでJSONのみ自動更新します -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-
   <title>電池交換マップ</title>
   <meta name="robots" content="noindex,nofollow">
 
-  <!-- 🗺 Leaflet（地図ライブラリ） -->
+  <!-- 🗺 Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 
   <style>
     html, body, #map { height:100%; margin:0; }
 
     /* 🔹右下の更新日時表示 */
-      #legend {
-        position:absolute;
-        bottom:8px;
-        right:8px;
-        background:rgba(0,0,0,0.75);
-        color:#fff;
-        padding:5px 10px;
-        border-radius:6px;
-        font-size:14px; /* ← ここでサイズアップ */
-        font-weight:500;
-        font-family:"Segoe UI","Helvetica Neue",sans-serif;
-        box-shadow:0 1px 3px rgba(0,0,0,0.3);
-        z-index:1000;
-        pointer-events:none;
-        line-height:1.5;
-      }
-      
-      /* Leafletコピーライト（CartoDB / OSM義務）を極小化＆透過 */
-      .leaflet-control-attribution {
-        font-size:8px !important;
-        opacity:0.3 !important;     /* ← 透過して目立たなくする */
-        bottom:0px !important;
-        right:2px !important;
-        z-index:0 !important;
-      }
+    #legend {
+      position:absolute;
+      bottom:8px;
+      right:8px;
+      background:rgba(0,0,0,0.75);
+      color:#fff;
+      padding:6px 12px;
+      border-radius:6px;
+      font-size:14px;
+      font-weight:500;
+      font-family:"Segoe UI","Helvetica Neue",sans-serif;
+      box-shadow:0 1px 3px rgba(0,0,0,0.3);
+      z-index:1000;
+      pointer-events:none;
+      line-height:1.5;
+    }
 
     /* 🔹右上の凡例 */
     #legend-top {
@@ -57,7 +46,7 @@
       line-height:1.6;
     }
 
-    /* ピン（マーカー）に使うラベル */
+    /* ピンラベル */
     .badge {
       display:inline-block;
       min-width:1.6em;
@@ -68,24 +57,28 @@
       font-size:11px;
     }
 
-    /* 赤マーカーを目立たせるため白い縁を付ける */
+    /* 赤マーカー縁 */
     .leaflet-interactive {
       stroke:#fff !important;
       stroke-width:1.2 !important;
     }
 
-    /* Leafletの著作権表示は非表示（社内専用用途のため） */
+    /* コピーライトを小さく・薄く */
     .leaflet-control-attribution {
-      display:none !important;
+      font-size:8px !important;
+      opacity:0.3 !important;
+      bottom:0px !important;
+      right:2px !important;
+      z-index:0 !important;
     }
   </style>
 </head>
 
 <body>
-  <!-- 🗺 地図描画領域 -->
+  <!-- 🗺 地図描画 -->
   <div id="map"></div>
 
-  <!-- 📋 凡例（色の意味を説明） -->
+  <!-- 📋 凡例 -->
   <div id="legend-top">
     <div><span style="color:#ff0000;font-weight:bold;">●</span> 要交換：<b>台数≥3</b> または <b>比重≥10</b></div>
     <div><span style="color:#ff4d4d;font-weight:bold;">●</span> 注意：比重6〜9</div>
@@ -94,56 +87,60 @@
     <div><span style="color:#1aff1a;font-weight:bold;">●</span> 正常：比重1〜2</div>
   </div>
 
-  <!-- ⏰ 更新日時（右下表示） -->
+  <!-- ⏰ 更新日時 -->
   <div id="legend">読み込み中…</div>
 
-  <!-- 🧩 Leaflet本体スクリプト -->
+  <!-- 🧩 Leaflet -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
   <script>
+    /* =====================================================
+       🗝 MapTiler APIキー設定（あなたのキーをここに貼る）
+       例）const MAPTILER_KEY = 'ここにあなたのキー';
+    ===================================================== */
+    const MAPTILER_KEY = '338nRvmyu8orXOAOfEe6';
+
     /* =====================================================
        🗺 地図の初期化
     ===================================================== */
     const MAP = L.map('map', { zoomControl:true });
 
-    // 明るめの地図タイル（CartoDB ラスターマップ）
+    // ✅ MapTiler「streets」ラスターマップ（Googleマップ風）
     L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      `https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
       {
         maxZoom: 20,
         detectRetina: true,
-        attribution: '&copy; CartoDB, OpenStreetMap contributors'
+        attribution: '&copy; MapTiler &copy; OpenStreetMap contributors'
       }
     ).addTo(MAP);
 
-    // ピンをまとめて管理するレイヤー
+    // マーカー格納用レイヤー
     const markersLayer = L.layerGroup().addTo(MAP);
 
     /* =====================================================
-       🎨 マーカーの色設定ルール
-         - 比重(weight) と 台数(count) で色分け
+       🎨 ピン色ルール
     ===================================================== */
     function colorBy(weight, count) {
       if (weight <= 0) return null;               // 非表示
       if (Number(count) >= 3) return '#ff0000';   // 台数3台以上 → 要交換（赤）
-      if (weight >= 10)      return '#b30000';   // 濃い赤（要交換）
-      if (weight >= 6)       return '#ff4d4d';   // 赤（注意）
-      if (weight === 5)      return '#ffe066';   // 黄（軽度注意）
-      if (weight >= 3)       return '#99e699';   // 黄緑（良好）
-      if (weight >= 1)       return '#1aff1a';   // 緑（正常）
+      if (weight >= 10)      return '#b30000';   // 濃い赤
+      if (weight >= 6)       return '#ff4d4d';   // 赤
+      if (weight === 5)      return '#ffe066';   // 黄
+      if (weight >= 3)       return '#99e699';   // 黄緑
+      if (weight >= 1)       return '#1aff1a';   // 緑
       return null;
     }
 
     /* =====================================================
-       ⚙️ マーカーのサイズ設定
-         - 台数(count)に比例して円の大きさを調整
+       ⚙️ マーカーサイズ（台数に比例）
     ===================================================== */
     function radiusByCount(c){
       return Math.max(6, Math.min(20, 6 + (Number(c)||0) * 2));
     }
 
     /* =====================================================
-       📡 JSONデータを取得
+       📡 JSONデータ読み込み
     ===================================================== */
     async function loadData(){
       const res = await fetch('data.json?t=' + Date.now());
@@ -152,18 +149,14 @@
     }
 
     /* =====================================================
-       🖊 地図へのプロット描画処理
+       🖊 地図描画
     ===================================================== */
     function render(data){
-      markersLayer.clearLayers();  // 一度全削除して再描画
+      markersLayer.clearLayers();
       const bounds = [];
 
-      // 各地点データをループ処理
       (data.items || []).forEach(({lat,lng,name,updated,weight,count}) => {
-        // 0以下（データ無し）はスキップ
         if (weight <= 0) return;
-
-        // 色とバッジの決定
         const fill = colorBy(weight, count);
         if (!fill) return;
 
@@ -172,7 +165,6 @@
           ? `<span style="display:inline-block;background:#ff0000;color:#fff;border-radius:10px;padding:2px 6px;font-size:11px;font-weight:bold;">要交換</span>`
           : ``;
 
-        // ポップアップHTML定義
         const html = `
           <div><strong>${name}</strong> ${statusBadge}</div>
           <div>更新: ${updated}</div>
@@ -185,28 +177,25 @@
             <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving" target="_blank" rel="noopener">車経路</a>
           </div>`;
 
-        // マーカー作成
         const m = L.circleMarker([lat, lng], {
           radius: radiusByCount(count),
-          color: '#fff',            // 白枠
+          color: '#fff',
           weight: 1.2,
           fillColor: fill,
           fillOpacity: 0.9
         }).bindPopup(html);
 
-        // 地図に追加
         m.addTo(markersLayer);
         bounds.push([lat, lng]);
       });
 
-      // 表示範囲を自動調整
       if (bounds.length) {
         MAP.fitBounds(bounds, { padding: [20, 20] });
       } else {
         MAP.setView([35.0, 135.75], 12);
       }
 
-      // JSON全体から最新の更新日時を取得して右下に表示
+      // 最新更新日時を表示
       const latest = (data.items || [])
         .map(v => v.updated)
         .filter(Boolean)
@@ -216,7 +205,7 @@
     }
 
     /* =====================================================
-       🚀 ページロード時にデータ取得＆描画
+       🚀 初回読み込み
     ===================================================== */
     (async ()=>{
       try {
@@ -227,6 +216,20 @@
         MAP.setView([35.0,135.75], 12);
       }
     })();
+
+    /* =====================================================
+       🔄 data.json だけ5分ごとに再取得して更新
+       （ページ全体リロードなし）
+    ===================================================== */
+    setInterval(async ()=>{
+      try {
+        const data = await loadData();
+        render(data);
+        console.log('✅ data.json を再取得しました');
+      } catch(e) {
+        console.warn('⚠️ data.json 更新失敗:', e);
+      }
+    }, 300000); // 300,000ms = 5分
   </script>
 </body>
 </html>
