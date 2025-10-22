@@ -21,13 +21,13 @@
       box-shadow:0 1px 4px rgba(0,0,0,.25); z-index:1000; user-select:none;
     }
 
-    /* 右下：HUD（更新日時＋クレジット：縦並び固定・さらに押し込み） */
+    /* 右下：HUD（更新日時＋クレジット：縦並び固定・押し込み） */
     #hud{
       position:absolute; right:4px; bottom:4px; z-index:1000;
       display:flex; flex-direction:column; align-items:flex-end; gap:4px;
-      pointer-events:none;  /* HUD自体はクリックを通す */
+      pointer-events:none;
     }
-    /* 更新日時パネル（ややコンパクト） */
+    /* 更新日時（ややコンパクト） */
     #legend{
       background:rgba(0,0,0,.78); color:#fff;
       padding:5px 10px; border-radius:6px;
@@ -38,15 +38,25 @@
     /* クレジット（legendの“下”に固定。枠なし・極小） */
     #credit{
       font:10px/1 "Segoe UI","Helvetica Neue",sans-serif; color:#ddd;
-      white-space:nowrap; pointer-events:auto; /* クリック可 */
-      margin-right:2px; /* 右端に寄せる微調整 */
+      white-space:nowrap; pointer-events:auto;
+      margin-right:2px;
     }
     #credit a{ color:#ddd; text-decoration:none; }
 
+    /* ポップアップ内の小バッジ */
     .badge{ display:inline-block; min-width:1.6em; text-align:center; padding:1px 4px; border-radius:8px; background:#eee; font-size:11px; }
+
+    /* マーカー視認性：白縁／標準帰属非表示（自前クレジットを表示） */
     .leaflet-interactive{ stroke:#fff !important; stroke-width:1.4 !important; }
     .leaflet-control-zoom{ display:none !important; }
-    .leaflet-control-attribution{ display:none !important; } /* 自前クレジットを表示 */
+    .leaflet-control-attribution{ display:none !important; }
+
+    /* 🔍 CARTOタイルを“少しだけ”くっきり（川・道・等高線が見やすく） */
+    .leaflet-tile.carto-tiles{
+      filter: contrast(1.08) saturate(1.08) brightness(0.98);
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
   </style>
 </head>
 <body>
@@ -59,7 +69,7 @@
     <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見
   </div>
 
-  <!-- 右下：更新日時 + その“下”にクレジット（重ならない） -->
+  <!-- 右下：更新日時 + その“下”にクレジット -->
   <div id="hud">
     <div id="legend">読み込み中…</div>
     <div id="credit">
@@ -69,26 +79,26 @@
   </div>
 
   <script>
-    /* ====== マップ（CARTO Light / APIキー不要 / ラベル込み ※英語） ====== */
+    /* ====== マップ（CARTO Light / APIキー不要 / ラベル込み） ====== */
     const MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 12);
 
     L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-      { maxZoom: 20, subdomains: 'abcd', attribution: '' }
+      { maxZoom: 20, subdomains: 'abcd', attribution: '', className: 'carto-tiles' }
     ).addTo(MAP);
 
     // マーカー用レイヤ
     const markersLayer = L.layerGroup().addTo(MAP);
 
-    /* ====== ピン色ルール（台数2以上→要交換） ======
-       - 要交換：赤（count>=2 または weight>=10）
+    /* ====== ピン色ルール（基準変更：台数3以上→要交換） ======
+       - 要交換：赤（count>=3 または weight>=10）
        - 交換推奨：橙（weight==5）
        - 様子見：淡緑（weight 3〜4）
        - 非表示：上記以外
     ============================================== */
     function colorBy(weight, count){
       const w = Number(weight)||0, c = Number(count)||0;
-      if (c >= 2) return '#e60026';    // 台数優先：要交換（赤）
+      if (c >= 3) return '#e60026';    // 台数優先：要交換（赤）
       if (w >= 10) return '#b3001f';   // 比重高：要交換（濃赤）
       if (w === 5) return '#ff8c00';   // 交換推奨（橙）
       if (w >= 3)  return '#b7e1a1';   // 様子見（淡緑）
@@ -112,7 +122,7 @@
         const fill = colorBy(weight, count);
         if (!fill) return;
 
-        const urgent = (Number(count)>=2) || (Number(weight)>=10);
+        const urgent = (Number(count)>=3) || (Number(weight)>=10);
         const statusText = urgent ? '要交換' : (Number(weight)==5 ? '交換推奨' : '様子見');
         const statusBadge = urgent
           ? `<span style="display:inline-block;background:#e60026;color:#fff;border-radius:10px;padding:2px 6px;font-size:11px;font-weight:bold;">要交換</span>`
@@ -140,7 +150,7 @@
 
       if (bounds.length) { MAP.fitBounds(bounds, {padding:[20,20]}); }
 
-      // 右下：更新日時（常時上、クレジットはその下）
+      // 右下：更新日時
       const latest = (data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0] || '-';
       document.getElementById('legend').innerHTML = `<strong>更新日時：${latest}</strong>`;
     }
