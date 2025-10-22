@@ -51,14 +51,14 @@
 <body>
   <div id="map"></div>
 
-  <!-- 左上：凡例（タイトル無しで簡素） -->
+  <!-- 左上：凡例 -->
   <div id="legend-top">
     <span style="color:#e60026;font-weight:bold;">●</span> 要交換<br>
     <span style="color:#ff8c00;font-weight:bold;">●</span> 交換推奨<br>
     <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見
   </div>
 
-  <!-- 右下：更新日時 + その“下”にクレジット（重なりなし） -->
+  <!-- 右下：更新日時 + その“下”にクレジット（重ならない） -->
   <div id="hud">
     <div id="legend">読み込み中…</div>
     <div id="credit">
@@ -72,31 +72,46 @@
     /* ====== マップ初期化 ====== */
     const MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 12);
 
-    /* 専用paneで重なり順を固定
-       basemap(200) < hillshade(300) < labels(650) < markers/popups
-    */
+    /* pane で重なり順固定： basemap < hillshade < labels（最前面） */
     MAP.createPane('basemap');   MAP.getPane('basemap').style.zIndex = 200;
     MAP.createPane('hillshade'); MAP.getPane('hillshade').style.zIndex = 300;
     MAP.createPane('labels');    MAP.getPane('labels').style.zIndex = 650;
-    MAP.getPane('labels').style.pointerEvents = 'none'; // ラベルでクリック妨げない
+    MAP.getPane('labels').style.pointerEvents = 'none'; // ラベルにクリックを奪わせない
 
-    /* ベース：CARTO Light（ラベル無し＝英語非表示） */
+    /* ベース：CARTO Light（ラベル無し＝英語を出さない） */
     L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
       { maxZoom: 20, subdomains: 'abcd', attribution: '', pane: 'basemap' }
     ).addTo(MAP);
 
-    /* 山の陰影（ごく薄く。不要なら行を削除 or opacity下げ） */
+    /* 山の陰影（うっすら、任意） */
     L.tileLayer(
       'https://cyberjapandata.gsi.go.jp/xyz/relief/{z}/{x}/{y}.png',
       { maxZoom: 15, opacity: 0.15, pane: 'hillshade' }
     ).addTo(MAP);
 
-    /* 日本語ラベル：GSI 注記（最前面。日本語マスト条件を満たす） */
-    L.tileLayer(
-      'https://cyberjapandata.gsi.go.jp/xyz/label/{z}/{x}/{y}.png',
+    /* 日本語ラベル：GSI 注記（第1候補） */
+    const labelGSI1 = L.tileLayer(
+      'https://maps.gsi.go.jp/xyz/label/{z}/{x}/{y}.png',
       { maxZoom: 18, opacity: 1.0, pane: 'labels' }
     ).addTo(MAP);
+
+    /* フォールバック：もう一方のGSIドメイン（第2候補） */
+    const labelGSI2 = L.tileLayer(
+      'https://cyberjapandata.gsi.go.jp/xyz/label/{z}/{x}/{y}.png',
+      { maxZoom: 18, opacity: 1.0, pane: 'labels' }
+    );
+
+    /* 片方でタイル取得に失敗したら自動でもう片方に切り替え */
+    let usingFallback = false;
+    labelGSI1.on('tileerror', () => {
+      if (!usingFallback) {
+        usingFallback = true;
+        MAP.removeLayer(labelGSI1);
+        labelGSI2.addTo(MAP);
+        console.warn('GSI label: maps.gsi.go.jp → 取得失敗。cyberjapandata に切替');
+      }
+    });
 
     // マーカー用レイヤ
     const markersLayer = L.layerGroup().addTo(MAP);
