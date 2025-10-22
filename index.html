@@ -8,33 +8,42 @@
   <meta name="robots" content="noindex,nofollow">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <style>
-    html, body, #map {
-      height: 100%;
-      margin: 0;
-    }
+  html, body, #map {
+    height: 100%;
+    margin: 0;
+  }
 
-    /* 左下の情報パネル（巡回マップ 更新日時） */
-    #legend {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      background: rgba(255, 255, 255, 0.85);
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 13px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-      z-index: 1000; /* 地図の上に重ねて表示 */
-    }
+  /* 🔹右下の更新日時パネル */
+  #legend {
+    position: absolute;
+    bottom: 10px;
+    right: 10px; /* ← 右下に配置 */
+    background: #222;              /* 黒っぽい背景 */
+    color: #fff;                   /* 白文字で視認性UP */
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: "Segoe UI", sans-serif;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    z-index: 1000;
+  }
 
-    .badge {
-      display: inline-block;
-      min-width: 1.6em;
-      text-align: center;
-      padding: 2px 6px;
-      border-radius: 10px;
-      background: #eee;
-    }
-  </style>
+  /* バッジの装飾（ポップアップ内） */
+  .badge {
+    display: inline-block;
+    min-width: 1.6em;
+    text-align: center;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: #eee;
+  }
+
+  /* 🔹Leaflet のコピーライト非表示 */
+  .leaflet-control-attribution {
+    display: none !important;
+  }
+</style>
+
 </head>
 <body>
   <div id="map"></div>
