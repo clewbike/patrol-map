@@ -1,19 +1,18 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <!-- 🧭 metaリロードは削除。JSでJSONのみ自動更新します -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>電池交換マップ</title>
   <meta name="robots" content="noindex,nofollow">
 
-  <!-- 🗺 Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
 
   <style>
     html, body, #map { height:100%; margin:0; }
 
-    /* 🔹右下の更新日時表示 */
+    /* 🔹右下の更新日時 */
     #legend {
       position:absolute;
       bottom:8px;
@@ -31,12 +30,12 @@
       line-height:1.5;
     }
 
-    /* 🔹右上の凡例 */
+    /* 🔹左上の凡例（簡素化） */
     #legend-top {
       position:absolute;
       top:8px;
-      right:8px;
-      background:rgba(255,255,255,0.9);
+      left:8px;
+      background:rgba(255,255,255,0.92);
       padding:6px 10px;
       border-radius:6px;
       font-size:12px;
@@ -44,9 +43,9 @@
       box-shadow:0 1px 4px rgba(0,0,0,0.25);
       z-index:1000;
       line-height:1.6;
+      user-select:none;
     }
 
-    /* ピンラベル */
     .badge {
       display:inline-block;
       min-width:1.6em;
@@ -57,116 +56,85 @@
       font-size:11px;
     }
 
-    /* 赤マーカー縁 */
     .leaflet-interactive {
       stroke:#fff !important;
       stroke-width:1.2 !important;
     }
 
-    /* コピーライトを小さく・薄く */
-    .leaflet-control-attribution {
-      font-size:8px !important;
-      opacity:0.3 !important;
-      bottom:0px !important;
-      right:2px !important;
-      z-index:0 !important;
-    }
+    .leaflet-control-zoom { display:none !important; } /* ＋/−ボタン非表示 */
+    .leaflet-control-attribution { display:none !important; } /* 標準クレジット非表示 */
   </style>
 </head>
-
 <body>
-  <!-- 🗺 地図描画 -->
   <div id="map"></div>
 
-  <!-- 📋 凡例 -->
+  <!-- 左上：凡例 -->
   <div id="legend-top">
-    <div><span style="color:#ff0000;font-weight:bold;">●</span> 要交換：<b>台数≥3</b> または <b>比重≥10</b></div>
-    <div><span style="color:#ff4d4d;font-weight:bold;">●</span> 注意：比重6〜9</div>
-    <div><span style="color:#ffe066;font-weight:bold;">●</span> やや注意：比重5</div>
-    <div><span style="color:#99e699;font-weight:bold;">●</span> 良好：比重3〜4</div>
-    <div><span style="color:#1aff1a;font-weight:bold;">●</span> 正常：比重1〜2</div>
+    <div><span style="color:#ff0000;font-weight:bold;">●</span> 要交換</div>
+    <div><span style="color:#ffcc66;font-weight:bold;">●</span> 交換推奨</div>
+    <div><span style="color:#bfe3bf;font-weight:bold;">●</span> 様子見</div>
   </div>
 
-  <!-- ⏰ 更新日時 -->
+  <!-- 右下：更新日時＋クレジット（旧デザインに戻す） -->
   <div id="legend">読み込み中…</div>
 
-  <!-- 🧩 Leaflet -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <!-- Leaflet本体 -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
 
   <script>
     /* =====================================================
-       🗝 MapTiler APIキー設定（あなたのキーをここに貼る）
-       例）const MAPTILER_KEY = 'ここにあなたのキー';
+       🗝 MapTiler APIキー
     ===================================================== */
     const MAPTILER_KEY = '338nRvmyu8orXOAOfEe6';
 
     /* =====================================================
-       🗺 地図の初期化
+       🗺 日本語ラベルの明るいマップ
+       jp-mierune-color（日本語・ピンク寄りで見やすい）
     ===================================================== */
-    const MAP = L.map('map', { zoomControl:true });
-
-    // ✅ MapTiler「streets」ラスターマップ（Googleマップ風）
+    const MAP = L.map('map', { zoomControl:false });
     L.tileLayer(
-      `https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
-      {
-        maxZoom: 20,
-        detectRetina: true,
-        attribution: '&copy; MapTiler &copy; OpenStreetMap contributors'
+      `https://api.maptiler.com/maps/jp-mierune-color/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+      { maxZoom: 20, tileSize: 512, zoomOffset: -1,
+        attribution: '&copy; OpenStreetMap contributors &copy; MapTiler'
       }
     ).addTo(MAP);
 
-    // マーカー格納用レイヤー
     const markersLayer = L.layerGroup().addTo(MAP);
 
     /* =====================================================
        🎨 ピン色ルール
     ===================================================== */
     function colorBy(weight, count) {
-      if (weight <= 0) return null;               // 非表示
-      if (Number(count) >= 3) return '#ff0000';   // 台数3台以上 → 要交換（赤）
-      if (weight >= 10)      return '#b30000';   // 濃い赤
-      if (weight >= 6)       return '#ff4d4d';   // 赤
-      if (weight === 5)      return '#ffe066';   // 黄
-      if (weight >= 3)       return '#99e699';   // 黄緑
-      if (weight >= 1)       return '#1aff1a';   // 緑
+      const w = Number(weight)||0;
+      const c = Number(count)||0;
+      if (w <= 2) return null;         // 1〜2は非表示
+      if (c >= 3) return '#ff0000';    // 要交換（台数優先）
+      if (w >= 10) return '#cc0000';   // 濃赤
+      if (w === 5) return '#ffcc66';   // 交換推奨（黄）
+      if (w >= 3)  return '#bfe3bf';   // 様子見（淡緑）
       return null;
     }
 
-    /* =====================================================
-       ⚙️ マーカーサイズ（台数に比例）
-    ===================================================== */
     function radiusByCount(c){
       return Math.max(6, Math.min(20, 6 + (Number(c)||0) * 2));
     }
 
-    /* =====================================================
-       📡 JSONデータ読み込み
-    ===================================================== */
     async function loadData(){
-      const res = await fetch('data.json?t=' + Date.now());
+      const res = await fetch('data.json?_=' + Date.now());
       if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
 
-    /* =====================================================
-       🖊 地図描画
-    ===================================================== */
     function render(data){
       markersLayer.clearLayers();
       const bounds = [];
 
       (data.items || []).forEach(({lat,lng,name,updated,weight,count}) => {
-        if (weight <= 0) return;
         const fill = colorBy(weight, count);
         if (!fill) return;
 
-        const urgent = (Number(count) >= 3) || (Number(weight) >= 10);
-        const statusBadge = urgent
-          ? `<span style="display:inline-block;background:#ff0000;color:#fff;border-radius:10px;padding:2px 6px;font-size:11px;font-weight:bold;">要交換</span>`
-          : ``;
-
         const html = `
-          <div><strong>${name}</strong> ${statusBadge}</div>
+          <div><strong>${name}</strong></div>
           <div>更新: ${updated}</div>
           <div>電池交換比重: <span class="badge">${weight}</span></div>
           <div>目安交換台数: <strong>${count}</strong></div>
@@ -190,23 +158,22 @@
       });
 
       if (bounds.length) {
-        MAP.fitBounds(bounds, { padding: [20, 20] });
+        MAP.fitBounds(bounds, { padding:[20,20] });
       } else {
-        MAP.setView([35.0, 135.75], 12);
+        MAP.setView([35.0,135.75], 12);
       }
 
-      // 最新更新日時を表示
+      // 🔹更新日時表示＋旧クレジット（小さめ文字）
       const latest = (data.items || [])
         .map(v => v.updated)
         .filter(Boolean)
         .sort()
         .reverse()[0] || '-';
-      document.getElementById('legend').innerHTML = `<strong>更新日時：${latest}</strong>`;
+      document.getElementById('legend').innerHTML =
+        `<strong>更新日時：${latest}</strong><br>
+         <span style="font-size:10px;opacity:0.8;">&copy; OpenStreetMap contributors | &copy; MapTiler</span>`;
     }
 
-    /* =====================================================
-       🚀 初回読み込み
-    ===================================================== */
     (async ()=>{
       try {
         const data = await loadData();
@@ -217,10 +184,6 @@
       }
     })();
 
-    /* =====================================================
-       🔄 data.json だけ5分ごとに再取得して更新
-       （ページ全体リロードなし）
-    ===================================================== */
     setInterval(async ()=>{
       try {
         const data = await loadData();
@@ -229,7 +192,7 @@
       } catch(e) {
         console.warn('⚠️ data.json 更新失敗:', e);
       }
-    }, 300000); // 300,000ms = 5分
+    }, 300000);
   </script>
 </body>
 </html>
