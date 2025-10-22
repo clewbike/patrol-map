@@ -4,7 +4,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 SHEET_ID = os.environ["SHEET_ID"]
-RANGE = os.environ.get("RANGE", "プロット用!A:E")  # 見出しを含む範囲（タブ名が違えば変更）
+RANGE = os.environ.get("RANGE", "GoogleMAPプロット用!A:E")  # 見出しを含む範囲（タブ名が違えば変更）
 OUTPUT = "data.json"
 
 def main():
