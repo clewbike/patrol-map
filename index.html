@@ -1,100 +1,180 @@
 <!doctype html>
 <html lang="ja">
 <head>
+  <!-- 🔁 5分ごとに自動リロード（最新データ反映用） -->
+  <meta http-equiv="refresh" content="300">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+
   <title>電池交換マップ</title>
   <meta name="robots" content="noindex,nofollow">
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
+  <!-- 🗺 Leaflet（地図ライブラリ） -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 
   <style>
-    html, body, #map { height: 100%; margin: 0; }
+    html, body, #map { height:100%; margin:0; }
 
-    /* 🔹右下の更新日時パネル */
-    #legend {
-      position: absolute;
-      bottom: 8px;
-      right: 8px;
-      background: rgba(0, 0, 0, 0.75);
-      color: #fff;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 10px;
-      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-      z-index: 1000;
-      pointer-events: none;
-      line-height: 1.4;
+    /* 🔹右下の更新日時表示 */
+      #legend {
+        position:absolute;
+        bottom:8px;
+        right:8px;
+        background:rgba(0,0,0,0.75);
+        color:#fff;
+        padding:5px 10px;
+        border-radius:6px;
+        font-size:14px; /* ← ここでサイズアップ */
+        font-weight:500;
+        font-family:"Segoe UI","Helvetica Neue",sans-serif;
+        box-shadow:0 1px 3px rgba(0,0,0,0.3);
+        z-index:1000;
+        pointer-events:none;
+        line-height:1.5;
+      }
+      
+      /* Leafletコピーライト（CartoDB / OSM義務）を極小化＆透過 */
+      .leaflet-control-attribution {
+        font-size:8px !important;
+        opacity:0.3 !important;     /* ← 透過して目立たなくする */
+        bottom:0px !important;
+        right:2px !important;
+        z-index:0 !important;
+      }
+
+    /* 🔹右上の凡例 */
+    #legend-top {
+      position:absolute;
+      top:8px;
+      right:8px;
+      background:rgba(255,255,255,0.9);
+      padding:6px 10px;
+      border-radius:6px;
+      font-size:12px;
+      font-family:"Segoe UI","Helvetica Neue",sans-serif;
+      box-shadow:0 1px 4px rgba(0,0,0,0.25);
+      z-index:1000;
+      line-height:1.6;
     }
 
+    /* ピン（マーカー）に使うラベル */
     .badge {
-      display: inline-block;
-      min-width: 1.6em;
-      text-align: center;
-      padding: 1px 4px;
-      border-radius: 8px;
-      background: #eee;
-      font-size: 11px;
+      display:inline-block;
+      min-width:1.6em;
+      text-align:center;
+      padding:1px 4px;
+      border-radius:8px;
+      background:#eee;
+      font-size:11px;
     }
 
-    /* 🔹Leaflet標準の帰属を非表示にする */
-    .leaflet-control-attribution { display: none !important; }
+    /* 赤マーカーを目立たせるため白い縁を付ける */
+    .leaflet-interactive {
+      stroke:#fff !important;
+      stroke-width:1.2 !important;
+    }
+
+    /* Leafletの著作権表示は非表示（社内専用用途のため） */
+    .leaflet-control-attribution {
+      display:none !important;
+    }
   </style>
 </head>
+
 <body>
+  <!-- 🗺 地図描画領域 -->
   <div id="map"></div>
+
+  <!-- 📋 凡例（色の意味を説明） -->
+  <div id="legend-top">
+    <div><span style="color:#ff0000;font-weight:bold;">●</span> 要交換：<b>台数≥3</b> または <b>比重≥10</b></div>
+    <div><span style="color:#ff4d4d;font-weight:bold;">●</span> 注意：比重6〜9</div>
+    <div><span style="color:#ffe066;font-weight:bold;">●</span> やや注意：比重5</div>
+    <div><span style="color:#99e699;font-weight:bold;">●</span> 良好：比重3〜4</div>
+    <div><span style="color:#1aff1a;font-weight:bold;">●</span> 正常：比重1〜2</div>
+  </div>
+
+  <!-- ⏰ 更新日時（右下表示） -->
   <div id="legend">読み込み中…</div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+  <!-- 🧩 Leaflet本体スクリプト -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
   <script>
-    // 🔑 MapTiler APIキーを設定してください
-    const MAPTILER_KEY = "338nRvmyu8orXOAOfEe6";
+    /* =====================================================
+       🗺 地図の初期化
+    ===================================================== */
+    const MAP = L.map('map', { zoomControl:true });
 
-    // 地図を作成（Leafletの標準帰属を無効化）
-    const MAP = L.map('map', { zoomControl:true, attributionControl:false });
-
-    // ベース：落ち着いた日本語グレーマップ
-    const baseLayer = L.tileLayer(
-      `https://api.maptiler.com/maps/jp-mierune-gray/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
-      { maxZoom:20, tileSize:512, zoomOffset:-1 }
+    // 明るめの地図タイル（CartoDB ラスターマップ）
+    L.tileLayer(
+      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      {
+        maxZoom: 20,
+        detectRetina: true,
+        attribution: '&copy; CartoDB, OpenStreetMap contributors'
+      }
     ).addTo(MAP);
 
-    // 山の陰影を追加（hillshadeを半透明で重ねる）
-    const hillshade = L.tileLayer(
-      `https://api.maptiler.com/tiles/hillshade/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
-      { maxZoom:20, opacity:0.35 }
-    ).addTo(MAP);
-
+    // ピンをまとめて管理するレイヤー
     const markersLayer = L.layerGroup().addTo(MAP);
 
-    function colorByWeight(w){
-      if (w >= 15) return '#8b0000';
-      if (w >= 10) return '#d73027';
-      if (w >= 7)  return '#fc8d59';
-      if (w >= 5)  return '#fee08b';
-      if (w >= 3)  return '#d9ef8b';
-      if (w >= 1)  return '#91cf60';
-      return '#1a9850';
+    /* =====================================================
+       🎨 マーカーの色設定ルール
+         - 比重(weight) と 台数(count) で色分け
+    ===================================================== */
+    function colorBy(weight, count) {
+      if (weight <= 0) return null;               // 非表示
+      if (Number(count) >= 3) return '#ff0000';   // 台数3台以上 → 要交換（赤）
+      if (weight >= 10)      return '#b30000';   // 濃い赤（要交換）
+      if (weight >= 6)       return '#ff4d4d';   // 赤（注意）
+      if (weight === 5)      return '#ffe066';   // 黄（軽度注意）
+      if (weight >= 3)       return '#99e699';   // 黄緑（良好）
+      if (weight >= 1)       return '#1aff1a';   // 緑（正常）
+      return null;
     }
 
+    /* =====================================================
+       ⚙️ マーカーのサイズ設定
+         - 台数(count)に比例して円の大きさを調整
+    ===================================================== */
     function radiusByCount(c){
       return Math.max(6, Math.min(20, 6 + (Number(c)||0) * 2));
     }
 
+    /* =====================================================
+       📡 JSONデータを取得
+    ===================================================== */
     async function loadData(){
-      const res = await fetch('data.json?_=' + Date.now());
+      const res = await fetch('data.json?t=' + Date.now());
       if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
 
+    /* =====================================================
+       🖊 地図へのプロット描画処理
+    ===================================================== */
     function render(data){
-      markersLayer.clearLayers();
+      markersLayer.clearLayers();  // 一度全削除して再描画
       const bounds = [];
 
+      // 各地点データをループ処理
       (data.items || []).forEach(({lat,lng,name,updated,weight,count}) => {
+        // 0以下（データ無し）はスキップ
+        if (weight <= 0) return;
+
+        // 色とバッジの決定
+        const fill = colorBy(weight, count);
+        if (!fill) return;
+
+        const urgent = (Number(count) >= 3) || (Number(weight) >= 10);
+        const statusBadge = urgent
+          ? `<span style="display:inline-block;background:#ff0000;color:#fff;border-radius:10px;padding:2px 6px;font-size:11px;font-weight:bold;">要交換</span>`
+          : ``;
+
+        // ポップアップHTML定義
         const html = `
-          <div><strong>${name}</strong></div>
+          <div><strong>${name}</strong> ${statusBadge}</div>
           <div>更新: ${updated}</div>
           <div>電池交換比重: <span class="badge">${weight}</span></div>
           <div>目安交換台数: <strong>${count}</strong></div>
@@ -104,36 +184,40 @@
             &nbsp;|&nbsp;
             <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving" target="_blank" rel="noopener">車経路</a>
           </div>`;
-        const m = L.circleMarker([lat,lng], {
+
+        // マーカー作成
+        const m = L.circleMarker([lat, lng], {
           radius: radiusByCount(count),
-          color:'#333', weight:1,
-          fillColor: colorByWeight(weight),
-          fillOpacity:0.85
+          color: '#fff',            // 白枠
+          weight: 1.2,
+          fillColor: fill,
+          fillOpacity: 0.9
         }).bindPopup(html);
+
+        // 地図に追加
         m.addTo(markersLayer);
-        bounds.push([lat,lng]);
+        bounds.push([lat, lng]);
       });
 
+      // 表示範囲を自動調整
       if (bounds.length) {
-        MAP.fitBounds(bounds, { padding:[20,20] });
+        MAP.fitBounds(bounds, { padding: [20, 20] });
       } else {
-        MAP.setView([35.0,135.75], 12);
+        MAP.setView([35.0, 135.75], 12);
       }
 
-      // JSON全体から最新更新日時を取得
+      // JSON全体から最新の更新日時を取得して右下に表示
       const latest = (data.items || [])
         .map(v => v.updated)
         .filter(Boolean)
         .sort()
         .reverse()[0] || '-';
-
-      // 右下のラベルに更新日時＋帰属を表示
-      document.getElementById('legend').innerHTML =
-        `<strong>更新日時：${latest}</strong><br>
-         <span style="opacity:.7;font-size:9px;">© OpenStreetMap contributors, © MapTiler</span>`;
+      document.getElementById('legend').innerHTML = `<strong>更新日時：${latest}</strong>`;
     }
 
-    // 初回描画
+    /* =====================================================
+       🚀 ページロード時にデータ取得＆描画
+    ===================================================== */
     (async ()=>{
       try {
         const data = await loadData();
@@ -143,16 +227,6 @@
         MAP.setView([35.0,135.75], 12);
       }
     })();
-
-    // 5分ごとにデータのみ更新（ページリロードなし）
-    setInterval(async ()=>{
-      try {
-        const data = await loadData();
-        render(data);
-      } catch(e) {
-        console.error('データ更新失敗:', e);
-      }
-    }, 300000);
   </script>
 </body>
 </html>
