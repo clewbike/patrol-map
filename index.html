@@ -5,84 +5,48 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>電池交換マップ</title>
   <meta name="robots" content="noindex,nofollow">
-
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
 
   <style>
-    html, body, #map { height:100%; margin:0; }
+    html, body, #map { height:100%; margin:0; background:#f5f5f5; } /* 背景を薄グレーに */
 
-    /* 🔹右下の更新日時（クレジットは枠外に分離） */
+    /* 右下：更新日時（クレジットは枠外で別表記） */
     #legend {
-      position:absolute;
-      bottom:8px;
-      right:8px;
-      background:rgba(0,0,0,0.75);
-      color:#fff;
-      padding:6px 12px;
-      border-radius:6px;
-      font-size:14px;
-      font-weight:500;
+      position:absolute; bottom:8px; right:8px;
+      background:rgba(0,0,0,0.75); color:#fff;
+      padding:6px 12px; border-radius:6px; font-size:14px; font-weight:500;
       font-family:"Segoe UI","Helvetica Neue",sans-serif;
-      box-shadow:0 1px 3px rgba(0,0,0,0.3);
-      z-index:1000;
-      pointer-events:none;
-      line-height:1.5;
+      box-shadow:0 1px 3px rgba(0,0,0,0.3); z-index:1000;
+      pointer-events:none; line-height:1.5;
     }
 
-    /* 🔹クレジット（更新日時の枠“外”に小さく表示） */
+    /* 左下：クレジット（枠外・小さく） */
     #credit {
-      position:absolute;
-      bottom:8px;
-      left:8px;
-      font-size:10px;
-      opacity:.8;
-      color:#333;
-      background:rgba(255,255,255,.85);
-      padding:3px 6px;
-      border-radius:6px;
+      position:absolute; bottom:8px; left:8px;
+      font-size:10px; opacity:.85; color:#333;
+      background:rgba(255,255,255,.9);
+      padding:3px 6px; border-radius:6px;
       font-family:"Segoe UI","Helvetica Neue",sans-serif;
       box-shadow:0 1px 3px rgba(0,0,0,.15);
-      z-index:900;
-      pointer-events:none;
+      z-index:900; pointer-events:none;
     }
 
-    /* 🔹左上の凡例（簡素化/指定文言） */
+    /* 左上：凡例（簡素） */
     #legend-top {
-      position:absolute;
-      top:8px;
-      left:8px;
-      background:rgba(255,255,255,0.92);
-      padding:6px 10px;
-      border-radius:6px;
-      font-size:12px;
-      font-family:"Segoe UI","Helvetica Neue",sans-serif;
-      box-shadow:0 1px 4px rgba(0,0,0,0.25);
-      z-index:1000;
-      line-height:1.6;
+      position:absolute; top:8px; left:8px;
+      background:rgba(255,255,255,0.92); padding:6px 10px; border-radius:6px;
+      font-size:12px; font-family:"Segoe UI","Helvetica Neue",sans-serif;
+      box-shadow:0 1px 4px rgba(0,0,0,0.25); z-index:1000; line-height:1.6;
       user-select:none;
     }
 
-    .badge {
-      display:inline-block;
-      min-width:1.6em;
-      text-align:center;
-      padding:1px 4px;
-      border-radius:8px;
-      background:#eee;
-      font-size:11px;
-    }
-
-    /* 赤マーカーの視認性UP（白縁） */
-    .leaflet-interactive { stroke:#fff !important; stroke-width:1.2 !important; }
-
-    /* ズーム＋/−を非表示・標準クレジットは隠す（自前で表示） */
-    .leaflet-control-zoom { display:none !important; }
-    .leaflet-control-attribution { display:none !important; }
+    .badge { display:inline-block; min-width:1.6em; text-align:center; padding:1px 4px; border-radius:8px; background:#eee; font-size:11px; }
+    .leaflet-interactive { stroke:#fff !important; stroke-width:1.2 !important; } /* 白縁で視認性UP */
+    .leaflet-control-zoom { display:none !important; }      /* ＋/−ボタンを非表示 */
+    .leaflet-control-attribution { display:none !important; }/* 標準帯は非表示（自前creditで表記） */
   </style>
 </head>
 <body>
-  <!-- 地図 -->
   <div id="map"></div>
 
   <!-- 左上：凡例 -->
@@ -90,32 +54,30 @@
     <div><span style="color:#ff0000;font-weight:bold;">●</span> 要交換</div>
     <div><span style="color:#ffcc66;font-weight:bold;">●</span> 交換推奨</div>
     <div><span style="color:#bfe3bf;font-weight:bold;">●</span> 様子見</div>
+    <!-- ※ 比重1〜2は非表示 -->
   </div>
 
-  <!-- 右下：更新日時のみ -->
+  <!-- 右下：更新日時 -->
   <div id="legend">読み込み中…</div>
 
-  <!-- 左下：クレジット（枠外） -->
-  <div id="credit">&copy; OpenStreetMap contributors | &copy; MapTiler</div>
+  <!-- 左下：クレジット（枠外・小さく） -->
+  <div id="credit">© 国土地理院 / © OpenStreetMap contributors</div>
 
-  <!-- Leaflet本体 -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
-
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
   <script>
     /* =====================================================
-       🗝 MapTiler APIキー
-    ===================================================== */
-    const MAPTILER_KEY = '338nRvmyu8orXOAOfEe6';
-
-    /* =====================================================
-       🗺 日本語ラベル・明るめ（jp-mierune-color）
+       🗺 地図の初期化（グレー対策ポイント）
+       - すぐに setView で中心＆ズームを与える
+       - APIキー不要の GSI 標準タイルを採用
+       - RetinaやzoomOffsetは使わず素直な設定に
     ===================================================== */
     const MAP = L.map('map', { zoomControl:false });
-    L.tileLayer(
-      `https://api.maptiler.com/maps/jp-mierune-color/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
-      { maxZoom: 20, tileSize: 512, zoomOffset: -1,
-        attribution: '&copy; OpenStreetMap contributors &copy; MapTiler'
-      }
+    MAP.setView([35.0116, 135.7681], 12); // ← 京都中心に仮セット（即描画させる）
+
+    // 国土地理院（標準地図）
+    const gsi = L.tileLayer(
+      'https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',
+      { maxZoom: 18 } // GSI標準タイルは 18 までが安定
     ).addTo(MAP);
 
     // ピン用レイヤー
@@ -131,8 +93,7 @@
     function colorBy(weight, count) {
       const w = Number(weight)||0;
       const c = Number(count)||0;
-      if (w <= 2) return null;         // 1〜2は非表示（0以下も含む）
-
+      if (w <= 2) return null;         // 1〜2（および0以下）は非表示
       if (c >= 3) return '#ff0000';    // 要交換（台数優先）
       if (w >= 10) return '#cc0000';   // 要交換（比重高）濃赤
       if (w === 5) return '#ffcc66';   // 交換推奨（黄）
@@ -140,14 +101,14 @@
       return null;
     }
 
-    /* 台数でサイズ可変（据え置き） */
+    /* 台数でサイズ可変 */
     function radiusByCount(c){
       return Math.max(6, Math.min(20, 6 + (Number(c)||0) * 2));
     }
 
     /* JSON取得 */
     async function loadData(){
-      const res = await fetch('data.json?_=' + Date.now());
+      const res = await fetch('data.json?_=' + Date.now()); // キャッシュ回避
       if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
@@ -161,13 +122,11 @@
         const fill = colorBy(weight, count);
         if (!fill) return;
 
-        // 🔴「要交換」バッジ（count>=3 or weight>=10 のとき）
         const urgent = (Number(count) >= 3) || (Number(weight) >= 10);
         const statusBadge = urgent
           ? `<span style="display:inline-block;background:#ff0000;color:#fff;border-radius:10px;padding:2px 6px;font-size:11px;font-weight:bold;">要交換</span>`
           : ``;
 
-        // ポップアップ（徒歩経路は削除。車経路のみ）
         const html = `
           <div><strong>${name}</strong> ${statusBadge}</div>
           <div>更新: ${updated}</div>
@@ -180,38 +139,34 @@
 
         const m = L.circleMarker([lat, lng], {
           radius: radiusByCount(count),
-          color: '#fff',
-          weight: 1.2,
-          fillColor: fill,
-          fillOpacity: 0.9
+          color: '#fff', weight: 1.2,
+          fillColor: fill, fillOpacity: 0.9
         }).bindPopup(html);
 
         m.addTo(markersLayer);
         bounds.push([lat, lng]);
       });
 
+      // 表示範囲
       if (bounds.length) {
         MAP.fitBounds(bounds, { padding:[20,20] });
       } else {
-        MAP.setView([35.0,135.75], 12);
+        MAP.setView([35.0116, 135.7681], 12); // データ0件でも京都を表示
       }
 
-      // 右下：更新日時（クレジットは別divで表示）
+      // 更新日時
       const latest = (data.items || [])
-        .map(v => v.updated)
-        .filter(Boolean)
-        .sort()
-        .reverse()[0] || '-';
+        .map(v => v.updated).filter(Boolean).sort().reverse()[0] || '-';
       document.getElementById('legend').innerHTML = `<strong>更新日時：${latest}</strong>`;
     }
 
     // 初回
     (async ()=>{
       try { render(await loadData()); }
-      catch(e){ alert(e.message); MAP.setView([35.0,135.75], 12); }
+      catch(e){ alert(e.message); /* 初期ビューは既に設定済み */ }
     })();
 
-    // 5分ごとに JSON だけ更新
+    // 5分ごと（JSONだけ更新）
     setInterval(async ()=>{
       try { render(await loadData()); }
       catch(e){ console.warn('data.json 更新失敗:', e); }
