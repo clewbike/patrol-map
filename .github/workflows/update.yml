@@ -1,0 +1,29 @@
+name: Update data.json
+
+on:
+  schedule: [{ cron: "*/30 * * * *" }]  # 30分ごと
+  workflow_dispatch: {}                  # 手動実行ボタン
+  push:
+    paths: ["build.py", "requirements.txt", "index.html", "robots.txt"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Build data.json
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          RANGE: "GoogleMAPプロット用!A:E"
+        run: python build.py
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          git diff --cached --quiet || (git commit -m "Update data.json" && git push)
