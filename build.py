@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 import os, json
+from datetime import datetime, timezone, timedelta
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 SHEET_ID = os.environ["SHEET_ID"]
-RANGE = os.environ.get("RANGE", "GoogleMAPプロット用!A:E")  # 見出しを含む範囲（タブ名が違えば変更）
+RANGE = os.environ.get("RANGE", "GoogleMAPプロット用!A:E")
 OUTPUT = "data.json"
+
+def now_jst():
+    return (datetime.now(timezone.utc) + timedelta(hours=9)).strftime("%Y-%m-%d %H:%M:%S")
 
 def main():
     creds_info = json.loads(os.environ["GOOGLE_CREDENTIALS"])
@@ -19,13 +23,12 @@ def main():
 
     if not values:
         with open(OUTPUT, "w", encoding="utf-8") as f:
-            json.dump({"generated_at":"", "items":[]}, f, ensure_ascii=False, indent=2)
+            json.dump({"generated_at": now_jst(), "items":[]}, f, ensure_ascii=False, indent=2)
         return
 
     header = values[0]
     rows = values[1:]
 
-    # 列名はシートの見出しと一致させてください
     i_latlng = header.index("プロット用緯度経度")
     i_name   = header.index("ポート名")
     i_upd    = header.index("更新日時")
@@ -41,12 +44,12 @@ def main():
             "lat": float(lat_str),
             "lng": float(lng_str),
             "name": r[i_name],
-            "updated": r[i_upd],   # "YYYY-MM-DD HH:MM:SS"
+            "updated": r[i_upd],
             "weight": int(r[i_w] or 0),
             "count": int(r[i_cnt] or 0),
         })
 
-    out = {"generated_at": "", "items": items}
+    out = {"generated_at": now_jst(), "items": items}
     with open(OUTPUT, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
 
