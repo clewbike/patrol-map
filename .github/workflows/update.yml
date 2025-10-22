@@ -2,28 +2,54 @@ name: Update data.json
 
 on:
   repository_dispatch:
-    types: [sheet-updated]   # ← 受け皿イベント名（任意名）
+    types: [sheet-updated]
+  workflow_dispatch: {}   # 手動起動も残す
 
-permissions: write-all
+permissions:
+  contents: write         # ← Actions に push 権限を付与（最小権限）
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout main
+        uses: actions/checkout@v4
         with:
-          python-version: "3.11"
-      - run: pip install -r requirements.txt
+          fetch-depth: 0     # 直前の履歴も取得
+          ref: main          # 明示的に main をチェックアウト
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
       - name: Build data.json
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
-          RANGE: "GoogleMAPプロット用!A:E"   # ← タブ名に合わせて変更
-        run: python build.py
-      - name: Commit & push
+          RANGE: "GoogleMAPプロット用!A:E"   # ←タブ名に合わせて
         run: |
-          git config user.name "github-actions[bot]"
+          python build.py
+          echo "---- ls -al (after build) ----"
+          ls -al
+          echo "---- head data.json ----"
+          head -n 20 data.json || true
+
+      - name: Git status (before commit)
+        run: |
+          git status
+          git diff -- data.json || true
+
+      - name: Commit & push data.json
+        run: |
+          git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data.json
-          git diff --cached --quiet || (git commit -m "Update data.json" && git push)
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."; exit 0
+          fi
+          git commit -m "Update data.json"
+          git push origin HEAD:main  
