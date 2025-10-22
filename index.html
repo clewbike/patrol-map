@@ -11,7 +11,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
 
   <style>
-    html, body, #map { height:100%; margin:0; }
+    html, body, #map { height:100%; margin:0; background:#f7f7f7; }
 
     /* 右下：更新日時 */
     #legend{
@@ -20,16 +20,16 @@
       padding:6px 12px; border-radius:6px; font-size:14px;
       font-family:"Segoe UI","Helvetica Neue",sans-serif;
       box-shadow:0 1px 3px rgba(0,0,0,.3); z-index:1000;
-      pointer-events:none;
+      pointer-events:none; line-height:1.5;
     }
 
-    /* 左下：必須クレジット（MapTiler + OSM） */
+    /* 左下：クレジット（控えめ） */
     #credit{
       position:absolute; bottom:8px; left:8px;
       font-size:10px; color:#ccc; background:rgba(0,0,0,.6);
       padding:3px 6px; border-radius:6px;
       font-family:"Segoe UI","Helvetica Neue",sans-serif;
-      z-index:900;
+      z-index:900; pointer-events:auto;
     }
     #credit a{ color:#ccc; text-decoration:none; }
 
@@ -45,13 +45,13 @@
     .badge{ display:inline-block; min-width:1.6em; text-align:center; padding:1px 4px; border-radius:8px; background:#eee; font-size:11px; }
     .leaflet-interactive{ stroke:#fff !important; stroke-width:1.2 !important; } /* 白縁で視認性UP */
     .leaflet-control-zoom{ display:none !important; }      /* ＋/−ボタン非表示 */
-    .leaflet-control-attribution{ display:none !important; }/* Leaflet標準帯は隠す（自前で表示） */
+    .leaflet-control-attribution{ display:none !important; }/* 標準の帯は隠す（自前で表記） */
   </style>
 </head>
 <body>
   <div id="map"></div>
 
-  <!-- 左上：凡例 -->
+  <!-- 左上：凡例（ご指定どおり） -->
   <div id="legend-top">
     <div><span style="color:#ff0000;font-weight:bold;">●</span> 要交換</div>
     <div><span style="color:#ffcc66;font-weight:bold;">●</span> 交換推奨</div>
@@ -62,41 +62,31 @@
   <!-- 右下：更新日時 -->
   <div id="legend">読み込み中…</div>
 
-  <!-- 左下：クレジット（Free要件を満たす） -->
+  <!-- 左下：クレジット（APIキー不要タイル用） -->
   <div id="credit">
-    © <a href="https://www.maptiler.com/" target="_blank" rel="noopener">MapTiler</a> /
+    © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> /
     © <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OpenStreetMap contributors</a>
   </div>
 
   <script>
-    /* =====================================================
-       🔑 MapTiler APIキー
-       - MapTiler Console > API keys
-       - Allowed domains に “{あなたの公開ドメイン}.github.io” を登録
-    ===================================================== */
-    const MAPTILER_KEY = 'NafOF7yAXQd7BI2GhMc4'; // ←差し替え
-
-    /* =====================================================
-       🗺 地図（MapTilerのみ / 日本語ラベル）
-       - スタイル: jp-mierune-color（見やすい日本語ピンク系）
-       - 512pxタイル + zoomOffset:-1 で高精細
-    ===================================================== */
+    /* ====== 🗺️ マップ（Carto Light / APIキー不要） ====== */
     const MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 12); // 京都周辺
+
+    // 明るく見やすい CartoDB Positron（light_all）
     L.tileLayer(
-      `https://api.maptiler.com/maps/jp-mierune-color/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
-      { maxZoom:20, tileSize:512, zoomOffset:-1, attribution:'' }
+      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      { maxZoom: 20, subdomains: 'abcd', attribution: '' }
     ).addTo(MAP);
 
     // マーカー用レイヤ
     const markersLayer = L.layerGroup().addTo(MAP);
 
-    /* =====================================================
-       🎨 ピン色ルール
+    /* ====== 🎨 ピン色ルール（ご指定） ======
        - 要交換：赤（count>=3 または weight>=10）
        - 交換推奨：黄（weight==5）
        - 様子見：淡緑（weight 3〜4）
        - 非表示：weight 1〜2 / 0以下
-    ===================================================== */
+    ======================================== */
     function colorBy(weight, count){
       const w = Number(weight)||0, c = Number(count)||0;
       if (w <= 2) return null;       // 1〜2（および0以下）は非表示
@@ -107,7 +97,7 @@
       return null;
     }
 
-    // 目安交換台数でサイズ可変（据え置きルール）
+    // 目安交換台数でサイズ可変（据え置き）
     function radiusByCount(c){ return Math.max(6, Math.min(20, 6 + (Number(c)||0) * 2)); }
 
     /* ====== JSON取得 ====== */
@@ -156,7 +146,7 @@
       document.getElementById('legend').innerHTML = `<strong>更新日時：${latest}</strong>`;
     }
 
-    // 初回 & 5分ごとのJSONだけ更新
+    // 初回 & 5分ごとの JSON だけ更新
     (async ()=>{ try{ render(await loadData()); }catch(e){ alert(e.message); } })();
     setInterval(async ()=>{ try{ render(await loadData()); }catch(e){} }, 300000);
   </script>
