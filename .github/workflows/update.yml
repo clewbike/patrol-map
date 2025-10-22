@@ -4,6 +4,8 @@ on:
   repository_dispatch:
     types: [sheet-updated]   # ← 受け皿イベント名（任意名）
 
+permissions: write-all
+
 jobs:
   build:
     runs-on: ubuntu-latest
