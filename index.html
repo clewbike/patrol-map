@@ -13,7 +13,7 @@
   <style>
     html, body, #map { height:100%; margin:0; background:#f7f7f7; }
 
-    /* 左上：凡例（タイトルなし） */
+    /* 左上：凡例（タイトル無し） */
     #legend-top{
       position:absolute; top:8px; left:8px;
       background:rgba(255,255,255,.92); padding:6px 10px; border-radius:6px;
@@ -21,30 +21,31 @@
       box-shadow:0 1px 4px rgba(0,0,0,.25); z-index:1000; user-select:none;
     }
 
-    /* 右下：更新日時（クレジットはこの下に自動配置） */
+    /* 右下：HUD（更新日時＋クレジットを縦並び固定） */
+    #hud{
+      position:absolute; right:8px; bottom:8px; z-index:1000;
+      display:flex; flex-direction:column; align-items:flex-end; gap:6px;
+      pointer-events:none;  /* HUD自体はクリックを通す */
+    }
+    /* 更新日時パネル */
     #legend{
-      position:absolute; bottom:8px; right:8px;
       background:rgba(0,0,0,.78); color:#fff;
       padding:6px 12px; border-radius:6px;
       font:13px/1.5 "Segoe UI","Helvetica Neue",sans-serif;
-      box-shadow:0 1px 3px rgba(0,0,0,.3); z-index:1000; pointer-events:none;
+      box-shadow:0 1px 3px rgba(0,0,0,.3);
       max-width:60vw;
     }
-
-    /* クレジット：枠なし極小。legendの下に自動配置 */
-    #credit {
-      position:absolute; right:8px; bottom:8px;  /* 初期値。JSで再配置 */
-      font:10px/1 "Segoe UI","Helvetica Neue",sans-serif;
-      color:#ddd; z-index:1001; pointer-events:auto; white-space:nowrap;
+    /* クレジット（legendの“下”に固定） */
+    #credit{
+      font:10px/1 "Segoe UI","Helvetica Neue",sans-serif; color:#ddd;
+      white-space:nowrap; pointer-events:auto;
     }
-    #credit a { color:#ddd; text-decoration:none; }
+    #credit a{ color:#ddd; text-decoration:none; }
 
     .badge{ display:inline-block; min-width:1.6em; text-align:center; padding:1px 4px; border-radius:8px; background:#eee; font-size:11px; }
-
-    /* 視認性強化：白縁、標準帰属非表示（自前creditで表記） */
     .leaflet-interactive{ stroke:#fff !important; stroke-width:1.4 !important; }
     .leaflet-control-zoom{ display:none !important; }
-    .leaflet-control-attribution{ display:none !important; }
+    .leaflet-control-attribution{ display:none !important; } /* 自前クレジットを表示 */
   </style>
 </head>
 <body>
@@ -57,43 +58,41 @@
     <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見
   </div>
 
-  <!-- 右下：更新日時 -->
-  <div id="legend">読み込み中…</div>
-
-  <!-- クレジット（legendの下に自動配置） -->
-  <div id="credit">
-    © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> /
-    © <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OSM</a> /
-    © <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>
+  <!-- 右下：更新日時 + その“下”にクレジット（重なりなし） -->
+  <div id="hud">
+    <div id="legend">読み込み中…</div>
+    <div id="credit">
+      © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> /
+      © <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OSM</a> /
+      © <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>
+    </div>
   </div>
 
   <script>
+    /* ====== マップ初期化 ====== */
     const MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 12);
 
-    /* ===== 専用paneを作って重なり順を固定 =====
-       basemap(200) < hillshade(300) < labels(650) < popups/controls
+    /* 専用paneで重なり順を固定
+       basemap(200) < hillshade(300) < labels(650) < markers/popups
     */
     MAP.createPane('basemap');   MAP.getPane('basemap').style.zIndex = 200;
     MAP.createPane('hillshade'); MAP.getPane('hillshade').style.zIndex = 300;
     MAP.createPane('labels');    MAP.getPane('labels').style.zIndex = 650;
-    // ベースを少し暗く＆コントラストUP（明るすぎ対策）
-    MAP.getPane('basemap').style.filter = 'brightness(0.94) contrast(1.06)';
-    // ラベルはクリックを阻害しない
-    MAP.getPane('labels').style.pointerEvents = 'none';
+    MAP.getPane('labels').style.pointerEvents = 'none'; // ラベルでクリック妨げない
 
-    /* ===== ベース：CARTO Light（ラベル無し） ===== */
+    /* ベース：CARTO Light（ラベル無し＝英語非表示） */
     L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
       { maxZoom: 20, subdomains: 'abcd', attribution: '', pane: 'basemap' }
     ).addTo(MAP);
 
-    /* ===== 山の陰影（うっすら） ===== */
+    /* 山の陰影（ごく薄く。不要なら行を削除 or opacity下げ） */
     L.tileLayer(
       'https://cyberjapandata.gsi.go.jp/xyz/relief/{z}/{x}/{y}.png',
-      { maxZoom: 15, opacity: 0.18, pane: 'hillshade' }
+      { maxZoom: 15, opacity: 0.15, pane: 'hillshade' }
     ).addTo(MAP);
 
-    /* ===== 日本語ラベル（最前面） ===== */
+    /* 日本語ラベル：GSI 注記（最前面。日本語マスト条件を満たす） */
     L.tileLayer(
       'https://cyberjapandata.gsi.go.jp/xyz/label/{z}/{x}/{y}.png',
       { maxZoom: 18, opacity: 1.0, pane: 'labels' }
@@ -102,7 +101,12 @@
     // マーカー用レイヤ
     const markersLayer = L.layerGroup().addTo(MAP);
 
-    /* ===== ピン色ルール（台数2以上→要交換） ===== */
+    /* ====== ピン色ルール（台数2以上→要交換） ======
+       - 要交換：赤（count>=2 または weight>=10）
+       - 交換推奨：橙（weight==5）
+       - 様子見：淡緑（weight 3〜4）
+       - 非表示：上記以外
+    ============================================== */
     function colorBy(weight, count){
       const w = Number(weight)||0, c = Number(count)||0;
       if (c >= 2) return '#e60026';    // 台数優先：要交換（赤）
@@ -113,12 +117,14 @@
     }
     function radiusByCount(c){ return Math.max(6, Math.min(22, 6 + (Number(c)||0) * 2)); }
 
+    /* ====== JSON取得 ====== */
     async function loadData(){
-      const res = await fetch('data.json?_=' + Date.now());
+      const res = await fetch('data.json?_=' + Date.now()); // キャッシュ回避
       if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
 
+    /* ====== 描画 ====== */
     function render(data){
       markersLayer.clearLayers();
       const bounds = [];
@@ -155,28 +161,14 @@
 
       if (bounds.length) { MAP.fitBounds(bounds, {padding:[20,20]}); }
 
+      // 右下：更新日時
       const latest = (data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0] || '-';
       document.getElementById('legend').innerHTML = `<strong>更新日時：${latest}</strong>`;
-
-      placeCreditUnderLegend();
-    }
-
-    function placeCreditUnderLegend(){
-      const leg = document.getElementById('legend');
-      const cred = document.getElementById('credit');
-      const extra = 8; // 余白
-      cred.style.right = '8px';
-      cred.style.bottom = (8 + leg.offsetHeight + extra) + 'px';
     }
 
     // 初回 & 5分ごとの JSONのみ更新
     (async ()=>{ try{ render(await loadData()); }catch(e){ alert(e.message); } })();
-    setInterval(async ()=>{ try{ render(await loadData()); placeCreditUnderLegend(); }catch(e){} }, 300000);
-
-    // legend更新やサイズ変更で位置再調整
-    const legend = document.getElementById('legend');
-    new ResizeObserver(placeCreditUnderLegend).observe(legend);
-    window.addEventListener('resize', placeCreditUnderLegend);
+    setInterval(async ()=>{ try{ render(await loadData()); }catch(e){} }, 300000);
   </script>
 </body>
 </html>
