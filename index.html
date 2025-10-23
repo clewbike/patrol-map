@@ -66,6 +66,29 @@
       mix-blend-mode: multiply;
       image-rendering: crisp-edges;
     }
+
+    /* 現在地ボタン（左下） */
+    .locate-control {
+      position: absolute;
+      left: 8px; bottom: 8px;
+      z-index: 1000;
+      pointer-events: auto; /* クリックを受ける */
+    }
+    .locate-btn {
+      appearance: none; border: none; cursor: pointer;
+      background: rgba(255,255,255,.95);
+      padding: 8px 10px; border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.25);
+      font: 12px/1 "Segoe UI","Helvetica Neue",sans-serif;
+    }
+    .locate-btn.active { background: #e6f3ff; }
+    .locate-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* 現在地の見た目 */
+    .me-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #2c7be5; border: 2px solid #fff; box-shadow: 0 0 0 2px rgba(44,123,229,.35);
+    }
   </style>
 </head>
 <body>
@@ -76,6 +99,11 @@
     <span style="color:#e60026;font-weight:bold;">●</span> 要交換<br>
     <span style="color:#ff8c00;font-weight:bold;">●</span> 様子見<br>
     <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見
+  </div>
+
+  <!-- 左下：現在地ボタン -->
+  <div class="locate-control">
+    <button id="locateBtn" class="locate-btn" title="現在地にフォーカス／追従ON/OFF">現在地</button>
   </div>
 
   <!-- 右下：更新日時＋クレジット -->
@@ -92,13 +120,11 @@
     /* ===== マップ設定（CARTO + Terrain） ===== */
     const MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 12);
 
-    // CARTO（明るめベース）
     L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
       { maxZoom: 19, subdomains: 'abcd', attribution: '', className: 'carto-tiles' }
     ).addTo(MAP);
 
-    // Terrain（川・山・線路を強調）
     L.tileLayer(
       'https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg',
       { maxZoom: 18, attribution: '', className: 'stamen-terrain' }
@@ -114,24 +140,22 @@
       if (w >= 3)             return 'watch-green';
       return null;
     }
-
     function colorByStatus(status){
       if (status === 'urgent')       return '#e60026'; // 要交換
       if (status === 'watch-yellow') return '#ff8c00'; // 様子見（黄）
       if (status === 'watch-green')  return '#b7e1a1'; // 様子見（緑）
       return null;
     }
-
     function radiusByCount(c){ return Math.max(6, Math.min(22, 6 + (Number(c)||0) * 2)); }
 
-    /* ===== JSONロードと再描画 ===== */
+    /* ===== JSONロード ===== */
     async function loadData(){
       const res = await fetch('data.json?_=' + Date.now());
       if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
 
-    // ▼ 状態管理フラグ
+    // ▼ 位置維持のためのフラグ
     let didInitialFit = false;
     let userMoved = false;
     MAP.on('movestart', () => { userMoved = true; });
@@ -172,21 +196,82 @@
         bounds.push([lat,lng]);
       });
 
-      // ★ 位置・ズーム維持（初回のみ自動調整）
+      // ★ 初回のみ自動フィット（ユーザーが動かしていれば行わない）
       if (bounds.length && !didInitialFit && !userMoved) {
         MAP.fitBounds(bounds, {padding:[20,20]});
         didInitialFit = true;
       }
 
-      // 更新日時
+      // 右下：更新日時
       const latest = (data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0] || '-';
       document.getElementById('legend').innerHTML = `<strong>更新日時：${latest}</strong>`;
     }
 
-    // 初回読み込み
+    // 初回 & 5分ごとの JSON更新（ビューは維持）
     (async ()=>{ try{ render(await loadData()); }catch(e){ alert(e.message); } })();
-    // 5分ごとに JSON のみ更新（ビュー維持）
     setInterval(async ()=>{ try{ render(await loadData()); }catch(e){} }, 300000);
+
+    /* ===== 現在地フォーカス（追従ON/OFF） ===== */
+    const locateBtn = document.getElementById('locateBtn');
+    let watchId = null;
+    let meMarker = null;
+    let meCircle = null;
+    let follow = false; // 追従フラグ
+
+    function updateMe(lat, lng, acc){
+      if (!meMarker) {
+        const div = L.divIcon({ className: '', html: '<div class="me-dot"></div>', iconSize: [16,16], iconAnchor: [8,8] });
+        meMarker = L.marker([lat, lng], { icon: div, interactive:false }).addTo(MAP);
+        meCircle = L.circle([lat, lng], { radius: acc||30, color:'#2c7be5', weight:1, fillColor:'#2c7be5', fillOpacity:0.12, interactive:false }).addTo(MAP);
+      } else {
+        meMarker.setLatLng([lat, lng]);
+        meCircle.setLatLng([lat, lng]).setRadius(acc||30);
+      }
+      if (follow) {
+        MAP.panTo([lat, lng], { animate:true });
+      }
+    }
+
+    function startWatch(){
+      if (!('geolocation' in navigator)) {
+        alert('この端末では位置情報が利用できません。');
+        return;
+      }
+      follow = true;
+      locateBtn.classList.add('active');
+      locateBtn.textContent = '現在地（追従中）';
+
+      watchId = navigator.geolocation.watchPosition(
+        (pos)=>{
+          const { latitude, longitude, accuracy } = pos.coords;
+          updateMe(latitude, longitude, accuracy);
+        },
+        (err)=>{
+          follow = false;
+          locateBtn.classList.remove('active');
+          locateBtn.textContent = '現在地';
+          alert('現在地を取得できませんでした：' + err.message);
+        },
+        { enableHighAccuracy:true, timeout:10000, maximumAge:5000 }
+      );
+    }
+
+    function stopWatch(){
+      follow = false;
+      locateBtn.classList.remove('active');
+      locateBtn.textContent = '現在地';
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+      // 現在地の表示自体は残す（消したい場合は下2行を有効化）
+      // if (meMarker) { MAP.removeLayer(meMarker); meMarker = null; }
+      // if (meCircle) { MAP.removeLayer(meCircle); meCircle = null; }
+    }
+
+    locateBtn.addEventListener('click', ()=>{
+      if (watchId === null) startWatch(); else stopWatch();
+    }, { passive:true });
   </script>
 </body>
 </html>
