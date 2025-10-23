@@ -6,7 +6,6 @@
   <title>電池交換マップ</title>
   <meta name="robots" content="noindex,nofollow">
 
-  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
 
@@ -17,13 +16,24 @@
     #legend-top{
       position:absolute; top:8px; left:8px;
       background:rgba(255,255,255,.92);
-      padding:6px 10px; border-radius:6px;
+      padding:8px 10px; border-radius:8px;
       font:12px/1.6 "Segoe UI","Helvetica Neue",sans-serif;
       box-shadow:0 1px 4px rgba(0,0,0,.25);
       z-index:1000; user-select:none;
     }
+    #legend-table{
+      border-collapse:collapse; margin-top:4px; width:100%;
+    }
+    #legend-table td{
+      padding:2px 6px; font-size:11px; text-align:right;
+    }
+    #legend-table td:first-child{
+      text-align:left; font-weight:bold;
+    }
+    #legend-note{
+      font-size:10px; color:#555; margin-top:4px; text-align:center;
+    }
 
-    /* 右下：更新日時＋クレジット */
     #hud{
       position:absolute; right:4px; bottom:4px; z-index:1000;
       display:flex; flex-direction:column; align-items:flex-end; gap:4px;
@@ -43,7 +53,6 @@
     }
     #credit a{ color:#ddd; text-decoration:none; }
 
-    /* 現在地ボタン */
     #locateFab{
       position:absolute; right:8px; bottom:64px; z-index:1000;
       pointer-events:auto;
@@ -58,21 +67,17 @@
     }
     .fab-btn:active{ transform:scale(0.95); }
     .fab-btn svg{ width:24px; height:24px; transition: fill .2s; }
-    .following svg{ fill:#2c7be5; } /* 追従中（青） */
-    .idle svg{ fill:#777; }         /* 非追従（グレー） */
+    .following svg{ fill:#2c7be5; }
+    .idle svg{ fill:#777; }
 
-    /* ポップアップ・タグ */
     .badge{ display:inline-block; min-width:1.6em; text-align:center; padding:1px 6px; border-radius:10px; background:#eee; font-size:11px; }
     .tag{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:bold; line-height:1; color:#fff; vertical-align:middle; }
     .tag-urgent{ background:#e60026; }
     .tag-watch-yellow{ background:#ff8c00; }
     .tag-watch-green{ background:#6fa86f; }
 
-    /* Leaflet既定コントロール非表示 */
-    .leaflet-control-zoom{ display:none !important; }
-    .leaflet-control-attribution{ display:none !important; }
+    .leaflet-control-zoom, .leaflet-control-attribution{ display:none !important; }
 
-    /* 現在地マーカーの四角枠対策 */
     .leaflet-div-icon{ background:transparent !important; border:none !important; }
     .me-dot{
       width:12px; height:12px; border-radius:50%;
@@ -85,22 +90,29 @@
 <body>
   <div id="map"></div>
 
-  <!-- 左上：凡例 -->
+  <!-- 凡例 -->
   <div id="legend-top">
-    <span style="color:#e60026;font-weight:bold;">●</span> 要交換<br>
-    <span style="color:#ff8c00;font-weight:bold;">●</span> 様子見<br>
-    <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見
+    <div><span style="color:#e60026;font-weight:bold;">●</span> 交換必須</div>
+    <div><span style="color:#ff8c00;font-weight:bold;">●</span> 交換可能</div>
+    <div><span style="color:#6fa86f;font-weight:bold;">●</span> 経過観測</div>
+
+    <table id="legend-table">
+      <tr><td style="color:#e60026;">交換必須</td><td id="cnt-urgent">0</td></tr>
+      <tr><td style="color:#ff8c00;">交換可能</td><td id="cnt-yellow">0</td></tr>
+      <tr><td style="color:#6fa86f;">経過観測</td><td id="cnt-green">0</td></tr>
+    </table>
+
+    <div id="legend-note">※赤色ポート数30件以上なら赤色ポートのみ優先巡回！</div>
   </div>
 
   <!-- 現在地FAB -->
   <div id="locateFab">
     <button id="locateBtn" class="fab-btn idle" title="現在地へ移動 / 追従ON">
-      <!-- Googleマップ風 上向きナビ矢印 -->
       <svg viewBox="0 0 24 24"><path d="M12 2l6.5 18.5-6.5-3-6.5 3L12 2z"></path></svg>
     </button>
   </div>
 
-  <!-- 右下：更新日時＋クレジット -->
+  <!-- HUD -->
   <div id="hud">
     <div id="legend"><strong>更新日時：</strong><span id="updateTime">読み込み中…</span></div>
     <div id="credit">
@@ -111,127 +123,117 @@
   </div>
 
   <script>
-    /* ===== マップ（CARTO 単体。必要なら Terrain 重ねも可） ===== */
-    const MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 12);
+    const MAP=L.map('map',{zoomControl:false}).setView([35.0116,135.7681],12);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-      { maxZoom:19, subdomains:'abcd' }).addTo(MAP);
+      {maxZoom:19,subdomains:'abcd'}).addTo(MAP);
+    const markersLayer=L.layerGroup().addTo(MAP);
 
-    const markersLayer = L.layerGroup().addTo(MAP);
-
-    /* ===== ステータス判定 ===== */
-    function statusOf(weight, count){
+    /* ステータス判定修正版 */
+    function statusOf(weight,count){
       const w=Number(weight)||0, c=Number(count)||0;
-      if(c>=3||w>=10) return 'urgent';
-      if(w===5) return 'watch-yellow';
-      if(w>=3) return 'watch-green';
+      if(c>=3||w>=10) return 'urgent';                // 交換必須（従来どおり）
+      if(w===5 && c>=2) return 'watch-yellow';         // 交換可能：比重5かつ2台以上
+      if(c>=2) return 'watch-green';                   // 経過観測：2台以上
       return null;
     }
-    function colorByStatus(s){ return s==='urgent'?'#e60026':s==='watch-yellow'?'#ff8c00':s==='watch-green'?'#b7e1a1':null; }
-    function radiusByCount(c){ return Math.max(6, Math.min(22, 6 + (Number(c)||0)*2)); }
+    function colorByStatus(s){
+      return s==='urgent'?'#e60026':s==='watch-yellow'?'#ff8c00':s==='watch-green'?'#6fa86f':null;
+    }
+    function radiusByCount(c){ return Math.max(6,Math.min(22,6+(Number(c)||0)*2)); }
 
-    /* ===== JSONロード ===== */
+    /* 表示用カウンタ */
+    function updateLegendCounts(u,y,g){
+      document.getElementById('cnt-urgent').textContent=u;
+      document.getElementById('cnt-yellow').textContent=y;
+      document.getElementById('cnt-green').textContent=g;
+    }
+
     async function loadData(){
       const res=await fetch('data.json?_='+Date.now());
-      if(!res.ok) throw new Error('data.jsonを取得できません');
+      if(!res.ok) throw new Error('data.json取得失敗');
       return res.json();
     }
 
-    /* ===== 追従の安定化：ワンショット抑制フラグ =====
-       - プログラムによる pan/setView の直後に発火する zoomstart/dragstart を無視するため
-       - withProgrammatic() で囲った操作の「直後◯◯ms」だけ userOff を抑制
-    ===================================================== */
-    let suppressUserOff = false;
-    function withProgrammatic(fn, ms=600){
-      suppressUserOff = true;
-      try { fn(); }
-      finally { setTimeout(()=>{ suppressUserOff = false; }, ms); }
+    let suppressUserOff=false;
+    function withProgrammatic(fn,ms=600){
+      suppressUserOff=true;
+      try{fn();}finally{setTimeout(()=>{suppressUserOff=false;},ms);}
     }
 
-    /* ===== 地図イベント：ユーザー操作でのみ追従OFF ===== */
-    let didInitialFit=false, userMoved=false;
-    MAP.on('dragstart', ()=>{
-      userMoved=true;
-      if(!suppressUserOff && following){ following=false; updateFollowIcon(); stopWatch(); }
-    });
-    MAP.on('zoomstart', ()=>{
-      if(!suppressUserOff && following){ following=false; updateFollowIcon(); stopWatch(); }
-    });
+    let didInitialFit=false,userMoved=false;
+    MAP.on('dragstart',()=>{userMoved=true;if(!suppressUserOff&&following){following=false;updateFollowIcon();stopWatch();}});
+    MAP.on('zoomstart',()=>{if(!suppressUserOff&&following){following=false;updateFollowIcon();stopWatch();}});
 
-    /* ===== 描画 ===== */
     function render(data){
       markersLayer.clearLayers();
-      const bounds=[];
+      const bounds=[],cnt={urgent:0,yellow:0,green:0};
+
       (data.items||[]).forEach(({lat,lng,name,updated,weight,count})=>{
         const s=statusOf(weight,count), fill=colorByStatus(s);
         if(!s||!fill) return;
 
-        const tagHtml = s==='urgent'
-          ? '<span class="tag tag-urgent">要交換</span>'
-          : s==='watch-yellow'
-            ? '<span class="tag tag-watch-yellow">様子見</span>'
-            : '<span class="tag tag-watch-green">様子見</span>';
+        if(s==='urgent')cnt.urgent++;
+        if(s==='watch-yellow')cnt.yellow++;
+        if(s==='watch-green')cnt.green++;
+
+        const tagHtml=s==='urgent'
+          ?'<span class="tag tag-urgent">交換必須</span>'
+          :s==='watch-yellow'
+            ?'<span class="tag tag-watch-yellow">交換可能</span>'
+            :'<span class="tag tag-watch-green">経過観測</span>';
 
         const html=`
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <strong>${name}</strong> ${tagHtml}
-          </div>
+          <div><strong>${name}</strong> ${tagHtml}</div>
           <div style="margin-top:6px">電池交換比重: <span class="badge">${weight}</span></div>
           <div>目安交換台数: <strong>${count}</strong></div>
           <div style="margin-top:10px">
             <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving" target="_blank" rel="noopener">車経路（GoogleMAP）</a>
           </div>`;
 
-        L.circleMarker([lat,lng],{
-          radius:radiusByCount(count), color:'#fff', weight:1.4,
-          fillColor:fill, fillOpacity:.92
-        }).bindPopup(html).addTo(markersLayer);
+        L.circleMarker([lat,lng],{radius:radiusByCount(count),color:'#fff',weight:1.4,fillColor:fill,fillOpacity:.92})
+          .bindPopup(html).addTo(markersLayer);
 
         bounds.push([lat,lng]);
       });
 
-      if(bounds.length && !didInitialFit && !userMoved){
-        withProgrammatic(()=>{ MAP.fitBounds(bounds, { padding:[20,20] }); }, 500);
+      updateLegendCounts(cnt.urgent,cnt.yellow,cnt.green);
+
+      if(bounds.length&&!didInitialFit&&!userMoved){
+        withProgrammatic(()=>{MAP.fitBounds(bounds,{padding:[20,20]});},500);
         didInitialFit=true;
       }
 
-      // 更新日時
       const latest=(data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0]||'-';
       document.getElementById('updateTime').textContent=latest;
     }
 
-    /* ===== 初回＋差分更新（位置維持） ===== */
     let lastDataJson="";
     async function refreshData(){
       try{
         const res=await fetch('data.json?_='+Date.now());
-        if(!res.ok) return;
+        if(!res.ok)return;
         const txt=await res.text();
-        if(txt===lastDataJson) return;
+        if(txt===lastDataJson)return;
         lastDataJson=txt;
         const data=JSON.parse(txt);
-
-        const center=MAP.getCenter(), zoom=MAP.getZoom();
+        const center=MAP.getCenter(),zoom=MAP.getZoom();
         render(data);
-        withProgrammatic(()=>{ MAP.setView(center, zoom, { animate:false }); }, 300);
-
-      }catch(e){ console.error(e); }
+        withProgrammatic(()=>{MAP.setView(center,zoom,{animate:false});},300);
+      }catch(e){console.error(e);}
     }
-    (async()=>{ try{
-      const res=await fetch('data.json?_='+Date.now());
-      if(res.ok){ lastDataJson=await res.text(); render(JSON.parse(lastDataJson)); }
-    }catch(e){ console.error(e); }})();
-    setInterval(refreshData, 300000); // 5分
 
-    /* ===== 現在地：追従制御 ===== */
-    let meMarker=null, meCircle=null, watchId=null, lastMe=null;
+    (async()=>{try{
+      const res=await fetch('data.json?_='+Date.now());
+      if(res.ok){lastDataJson=await res.text();render(JSON.parse(lastDataJson));}
+    }catch(e){console.error(e);}})();
+    setInterval(refreshData,300000);
+
+    /* 現在地 */
+    let meMarker=null,meCircle=null,watchId=null,lastMe=null;
     let following=false;
     const btn=document.getElementById('locateBtn');
-
-    function updateFollowIcon(){
-      btn.classList.toggle('following',following);
-      btn.classList.toggle('idle',!following);
-    }
-    function stopWatch(){ if(watchId){ navigator.geolocation.clearWatch(watchId); watchId=null; } }
+    function updateFollowIcon(){btn.classList.toggle('following',following);btn.classList.toggle('idle',!following);}
+    function stopWatch(){if(watchId){navigator.geolocation.clearWatch(watchId);watchId=null;}}
 
     function showOrUpdateMe(lat,lng,acc){
       if(!meMarker){
@@ -243,55 +245,46 @@
         meCircle.setLatLng([lat,lng]).setRadius(acc||30);
       }
       lastMe={lat,lng};
-      if(following){
-        withProgrammatic(()=>{ MAP.panTo([lat,lng]); }, 400);
-      }
+      if(following){withProgrammatic(()=>{MAP.panTo([lat,lng]);},400);}
     }
 
-    // 📍ボタン：追従ON → 現在地へ（ズーム不足ならz=15）
-    btn.addEventListener('click', ()=>{
-      if(!('geolocation' in navigator)){ alert('位置情報が利用できません'); return; }
-
+    btn.addEventListener('click',()=>{
+      if(!('geolocation'in navigator)){alert('位置情報が利用できません');return;}
       if(!following){
-        following=true; updateFollowIcon();
+        following=true;updateFollowIcon();
         watchId=navigator.geolocation.watchPosition(
-          p=>{ const {latitude,longitude,accuracy}=p.coords; showOrUpdateMe(latitude,longitude,accuracy); },
-          err=>{ console.warn('watchPosition error:', err); },
-          { enableHighAccuracy:true, maximumAge:5000 }
+          p=>{const {latitude,longitude,accuracy}=p.coords;showOrUpdateMe(latitude,longitude,accuracy);},
+          err=>{console.warn('watchPosition error:',err);},
+          {enableHighAccuracy:true,maximumAge:5000}
         );
       }
-
       navigator.geolocation.getCurrentPosition(
         pos=>{
           const {latitude,longitude,accuracy}=pos.coords;
           showOrUpdateMe(latitude,longitude,accuracy);
           const targetZoom=15;
           withProgrammatic(()=>{
-            if(MAP.getZoom()<targetZoom) MAP.setView([latitude,longitude], targetZoom, { animate:true });
-            else MAP.panTo([latitude,longitude], { animate:true });
-          }, 700); // ← この間のzoomstart/dragstartは無視
+            if(MAP.getZoom()<targetZoom)MAP.setView([latitude,longitude],targetZoom,{animate:true});
+            else MAP.panTo([latitude,longitude],{animate:true});
+          },700);
         },
         err=>{
           if(lastMe){
-            const {lat,lng}=lastMe;
-            const targetZoom=15;
+            const {lat,lng}=lastMe;const targetZoom=15;
             withProgrammatic(()=>{
-              if(MAP.getZoom()<targetZoom) MAP.setView([lat,lng], targetZoom, { animate:true });
-              else MAP.panTo([lat,lng], { animate:true });
-            }, 700);
-          }else{
-            alert('現在地を取得できませんでした：'+err.message);
-          }
+              if(MAP.getZoom()<targetZoom)MAP.setView([lat,lng],targetZoom,{animate:true});
+              else MAP.panTo([lat,lng],{animate:true});
+            },700);
+          }else{alert('現在地を取得できませんでした：'+err.message);}
         },
-        { enableHighAccuracy:true, timeout:10000, maximumAge:5000 }
+        {enableHighAccuracy:true,timeout:10000,maximumAge:5000}
       );
     });
 
-    // 起動時：許可あれば一度だけマーク設置（フォーカスはしない）
-    if('geolocation' in navigator){
+    if('geolocation'in navigator){
       navigator.geolocation.getCurrentPosition(
-        pos=>{ const {latitude,longitude,accuracy}=pos.coords; showOrUpdateMe(latitude,longitude,accuracy); },
-        ()=>{}, { enableHighAccuracy:true, timeout:10000 }
+        pos=>{const {latitude,longitude,accuracy}=pos.coords;showOrUpdateMe(latitude,longitude,accuracy);},
+        ()=>{}, {enableHighAccuracy:true,timeout:10000}
       );
     }
   </script>
