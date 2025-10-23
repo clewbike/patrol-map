@@ -13,7 +13,7 @@
   <style>
     html, body, #map { height:100%; margin:0; background:#f7f7f7; }
 
-    /* 左上：凡例 */
+    /* 左上：凡例（タイトル無し） */
     #legend-top{
       position:absolute; top:8px; left:8px;
       background:rgba(255,255,255,.92); padding:6px 10px; border-radius:6px;
@@ -21,13 +21,12 @@
       box-shadow:0 1px 4px rgba(0,0,0,.25); z-index:1000; user-select:none;
     }
 
-    /* 右下：HUD（更新日時＋クレジット） */
+    /* 右下：HUD（更新日時＋クレジット：縦並び固定・押し込み） */
     #hud{
       position:absolute; right:4px; bottom:4px; z-index:1000;
       display:flex; flex-direction:column; align-items:flex-end; gap:4px;
       pointer-events:none;
     }
-
     #legend{
       background:rgba(0,0,0,.78); color:#fff;
       padding:5px 10px; border-radius:6px;
@@ -35,7 +34,6 @@
       box-shadow:0 1px 3px rgba(0,0,0,.3);
       max-width:60vw;
     }
-
     #credit{
       font:10px/1 "Segoe UI","Helvetica Neue",sans-serif; color:#ddd;
       white-space:nowrap; pointer-events:auto;
@@ -43,22 +41,28 @@
     }
     #credit a{ color:#ddd; text-decoration:none; }
 
-    /* バッジ */
-    .badge{ display:inline-block; min-width:1.6em; text-align:center; padding:1px 4px; border-radius:8px; background:#eee; font-size:11px; }
+    /* バッジ（ピンの吹き出し内などで使用） */
+    .badge{ display:inline-block; min-width:1.6em; text-align:center; padding:1px 6px; border-radius:10px; background:#eee; font-size:11px; }
+    .tag{
+      display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:bold; line-height:1;
+      color:#fff; vertical-align:middle;
+    }
+    .tag-urgent{ background:#e60026; }      /* 要交換（共通の赤） */
+    .tag-recommend{ background:#ff8c00; }   /* 交換推奨（橙） */
+    .tag-watch{ background:#6fa86f; }       /* 様子見（淡緑より少し濃いめ） */
 
-    /* Leaflet */
+    /* マーカー視認性：白縁／標準帰属非表示（自前クレジットを表示） */
     .leaflet-interactive{ stroke:#fff !important; stroke-width:1.4 !important; }
     .leaflet-control-zoom{ display:none !important; }
     .leaflet-control-attribution{ display:none !important; }
 
-    /* CARTOタイル（下地：明るめで淡い） */
+    /* CARTOタイル：やや鮮鋭化は控えめ（Terrain濃くするため） */
     .leaflet-tile.carto-tiles{
-      filter: contrast(1.1) saturate(1.1) brightness(1.02);
+      filter: contrast(1.08) saturate(1.08) brightness(1.00);
     }
-
-    /* Stamen Terrain（上層：半透明） */
+    /* Stamen Terrain（濃く／乗算で地形を強調） */
     .leaflet-tile.stamen-terrain{
-      opacity: 0.55;
+      opacity: 0.72;                /* ← 濃くしました（0.55→0.72） */
       mix-blend-mode: multiply;
       image-rendering: crisp-edges;
     }
@@ -85,73 +89,83 @@
   </div>
 
   <script>
-    // ====== マップ初期化 ======
+    /* ====== マップ（CARTO + Stamen Terrain） ====== */
     const MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 12);
 
-    // CARTOベース（下層）
+    // 下層：CARTO（ラベル込み）
     L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
       { maxZoom: 19, subdomains: 'abcd', attribution: '', className: 'carto-tiles' }
     ).addTo(MAP);
 
-    // Stamen Terrain（上層）
+    // 上層：Stamen Terrain（濃いめに）
     L.tileLayer(
       'https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg',
       { maxZoom: 18, attribution: '', className: 'stamen-terrain' }
     ).addTo(MAP);
 
-    // ピン表示レイヤ
+    // マーカー用レイヤ
     const markersLayer = L.layerGroup().addTo(MAP);
 
-    // ====== ピンの色設定 ======
-    // 台数3以上 or 比重>=10 → 要交換（赤）を共通色で統一
-    function colorBy(weight, count){
+    /* ====== ピン色・状態判定 ======
+       - 要交換：赤（目安交換台数>=3  または  比重>=10）※赤は1色で統一
+       - 交換推奨：橙（weight==5）
+       - 様子見：緑（weight 3〜4）
+       - 非表示：上記以外
+    ================================== */
+    function statusOf(weight, count){
       const w = Number(weight)||0, c = Number(count)||0;
-      if (c >= 3 || w >= 10) return '#e60026';  // ←共通赤
-      if (w === 5) return '#ff8c00';            // 交換推奨
-      if (w >= 3)  return '#b7e1a1';            // 様子見
+      if (c >= 3 || w >= 10) return 'urgent';       // 要交換
+      if (w === 5)            return 'recommend';   // 交換推奨
+      if (w >= 3)             return 'watch';       // 様子見
+      return null;                                    // 非表示
+    }
+    function colorByStatus(status){
+      if (status === 'urgent')    return '#e60026'; // 共通の赤
+      if (status === 'recommend') return '#ff8c00';
+      if (status === 'watch')     return '#b7e1a1';
       return null;
     }
-
     function radiusByCount(c){ return Math.max(6, Math.min(22, 6 + (Number(c)||0) * 2)); }
 
-    // ====== JSONロード ======
+    /* ====== JSON取得 ====== */
     async function loadData(){
-      const res = await fetch('data.json?_=' + Date.now());
+      const res = await fetch('data.json?_=' + Date.now()); // キャッシュ回避
       if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
 
-    // ====== 描画 ======
+    /* ====== 描画 ====== */
     function render(data){
       markersLayer.clearLayers();
       const bounds = [];
 
       (data.items || []).forEach(({lat,lng,name,updated,weight,count})=>{
-        const fill = colorBy(weight, count);
-        if (!fill) return;
+        const status = statusOf(weight, count);
+        const fill = colorByStatus(status);
+        if (!status || !fill) return;
 
-        const urgent = (Number(count)>=3) || (Number(weight)>=10);
-        const statusText = urgent ? '要交換' : (Number(weight)==5 ? '交換推奨' : '様子見');
-        const statusBadge = urgent
-          ? `<span style="display:inline-block;background:#e60026;color:#fff;border-radius:10px;padding:2px 6px;font-size:11px;font-weight:bold;">要交換</span>`
-          : ``;
+        // 状態タグ
+        const tagHtml =
+          status === 'urgent'    ? `<span class="tag tag-urgent">要交換</span>` :
+          status === 'recommend' ? `<span class="tag tag-recommend">交換推奨</span>` :
+          `<span class="tag tag-watch">様子見</span>`;
 
+        // —— ポップアップ（簡素版）——
         const html = `
-          <div><strong>${name}</strong> ${statusBadge}</div>
-          <div>${statusText}</div>
-          <div>更新: ${updated}</div>
-          <div>電池交換比重: <span class="badge">${weight}</span></div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <strong>${name}</strong> ${tagHtml}
+          </div>
+          <div style="margin-top:6px">電池交換比重: <span class="badge">${weight}</span></div>
           <div>目安交換台数: <strong>${count}</strong></div>
-          <div>緯度経度: ${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}</div>
-          <div style="margin-top:8px">
+          <div style="margin-top:10px">
             <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving" target="_blank" rel="noopener">車経路（GoogleMAP）</a>
           </div>`;
 
         L.circleMarker([lat,lng], {
           radius: radiusByCount(count),
           color:'#fff', weight:1.4,
-          fillColor: fill, fillOpacity:.9
+          fillColor: fill, fillOpacity:.92
         }).bindPopup(html).addTo(markersLayer);
 
         bounds.push([lat,lng]);
@@ -159,11 +173,12 @@
 
       if (bounds.length) MAP.fitBounds(bounds, {padding:[20,20]});
 
+      // 右下：更新日時（共通の最新値を表示）
       const latest = (data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0] || '-';
       document.getElementById('legend').innerHTML = `<strong>更新日時：${latest}</strong>`;
     }
 
-    // 初回 & 5分おき更新
+    // 初回 & 5分おき更新（JSONのみ）
     (async ()=>{ try{ render(await loadData()); }catch(e){ alert(e.message); } })();
     setInterval(async ()=>{ try{ render(await loadData()); }catch(e){} }, 300000);
   </script>
