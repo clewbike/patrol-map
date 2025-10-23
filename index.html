@@ -20,7 +20,7 @@
       padding:6px 7px; border-radius:9px;
       font:12px/1.35 "Segoe UI","Helvetica Neue",sans-serif;
       box-shadow:0 1px 6px rgba(0,0,0,.18);
-      width:164px;   /* ← 前回よりさらに小さく */
+      width:140px;   /* ← 前回よりさらに小さく164pxから変更 */
     }
     .legend-row{
       display:grid;
@@ -164,7 +164,7 @@
     <!-- 注意文を凡例の中に戻し、右に i ボタン -->
     <div class="legend-note-wrap">
       <div class="legend-note">交換必須「40件以上」なら
-赤色ポートのみ優先巡回！</div>
+赤色ポートを最優先巡回！</div>
       <button id="tipAll" class="tip-btn" title="定義を表示">i</button>
     </div>
   </div>
@@ -406,20 +406,22 @@
 
       <h4><span class="tag tag-urgent">交換必須</span></h4>
       <ul>
-        <li>交換比重 6以上</li>
-        <li>交換台数 3台以上 かつ 交換比重 6以上</li>
-        <li>長期電池切れの放置車両（ポート外含む）</li>
+        <li>最優先の交換対象ポート！市内中心地の主要駅ポートは交換対応必須</li>
+        <li>ＡＴ異常車両や長期電池切れの放置車両（ポート外含む）を厳選表示</li>
+        <li>抽出定義「交換比重 6以上」または「交換台数 3台以上」</li>
       </ul>
 
       <h4><span class="tag tag-watch-yellow">交換可能</span></h4>
       <ul>
-        <li>交換台数 3台以上</li>
-        <li>交換台数 2台以上 かつ 交換比重 5に等しい</li>
+        <li>交換必須ポート「40件以上」の場合は自動で☑チェック欄から外されている</li>
+        <li>但し「交換台数 4台以上」なら交換必須ポートの導線上に限り巡回優先度は高い</li>
+        <li>抽出定義「交換比重 5に等しい」または「交換台数 2台以上」</li>
       </ul>
 
       <h4><span class="tag tag-watch-green">経過観測</span></h4>
       <ul>
-        <li>交換台数 2台以上</li>
+        <li>経過観測のため巡回不要、標準で☑チェック欄から外されている</li>
+        <li>抽出定義「交換台数 2台」</li>
       </ul>
     `;
     function openTips(){
