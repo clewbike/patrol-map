@@ -20,7 +20,7 @@
       padding:8px; border-radius:10px;
       font:12.5px/1.45 "Segoe UI","Helvetica Neue",sans-serif;
       box-shadow:0 1px 8px rgba(0,0,0,.18);
-      width:184px; /* 盤面を圧迫しない幅（少しだけ詰め気味） */
+      width:184px;
     }
     /* ヘッダー行：チェック列の“見出し”位置に i ボタンを置く */
     .legend-head{
@@ -35,7 +35,7 @@
       display:grid;
       grid-template-columns: auto minmax(26px,auto) 18px; /* 名称 / 件数 / チェック */
       align-items:center;
-      column-gap:4px;            /* ← 列間を詰める（全角2スペース相当の見た目） */
+      column-gap:4px;            /* ← 列間を詰め（全角2スペ相当の見え方） */
       margin:2px 0;
     }
     .legend-left{ display:flex; align-items:center; gap:4px; min-width:0; }
@@ -46,10 +46,6 @@
       letter-spacing:.02em;
     }
     .legend-ctrl{ width:18px; display:flex; justify-content:flex-end; }
-    .legend-note{
-      margin-top:4px; font-size:11px; color:#b00020; line-height:1.5;
-      white-space:pre-line; letter-spacing:.15px;
-    }
 
     input[type=checkbox]{ transform:scale(1.05); cursor:pointer; }
 
@@ -62,14 +58,32 @@
     }
     .tip-btn:active{ transform:scale(.96); }
 
-    #tipBox{
-      position:absolute; left:10px; right:10px; bottom:10px;
-      background:#1f1f1fcc; color:#fff; padding:8px 10px;
-      border-radius:8px; font:12px/1.6 "Segoe UI","Helvetica Neue",sans-serif;
-      box-shadow:0 4px 14px rgba(0,0,0,.28); display:none;
+    #tipBackdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.25); display:none; z-index:1100;
     }
-    #tipBox b{ color:#fff; }
-    #tipBox .close{ float:right; margin-left:8px; cursor:pointer; color:#ddd; }
+    #tipBox{
+      position:absolute; left:10px; right:10px; bottom:10px; z-index:1110;
+      background:#1f1f1fe6; color:#fff; padding:10px 12px;
+      border-radius:10px; font:13px/1.6 "Segoe UI","Helvetica Neue",sans-serif;
+      box-shadow:0 4px 14px rgba(0,0,0,.28); display:none;
+      max-width:520px;
+    }
+    #tipBox h4{ margin:4px 0 6px; font-size:13px; display:flex; align-items:center; gap:6px; }
+    #tipBox h4 .dot{ font-weight:700; }
+    #tipBox ul{ margin:0 0 8px 1.2em; padding:0; }
+    #tipBox li{ margin:2px 0; }
+    #tipBox .close{
+      float:right; margin-left:8px; cursor:pointer; color:#ddd; font-weight:700;
+    }
+
+    /* ── 凡例の注意文：枠外に別配置（位置は左上の凡例下） ───────── */
+    #legend-note{
+      position:absolute; top:120px; left:8px; z-index:900; /* 凡例のすぐ下あたり */
+      background:transparent; color:#b00020;
+      font:11.5px/1.5 "Segoe UI","Helvetica Neue",sans-serif;
+      white-space:pre-line; user-select:none;
+      pointer-events:none;  /* 誤タップ防止 */
+    }
 
     /* ── 右下：更新時刻＋クレジット ─────────────────────── */
     #hud{
@@ -132,11 +146,8 @@
 
   <!-- ── 左上：凡例（ヘッダーにiボタン、各行は3列揃え） ── -->
   <div id="legend-top">
-
-    <!-- ヘッダー行：チェック列の真上に i ボタン -->
     <div class="legend-head">
-      <div></div>
-      <div></div>
+      <div></div><div></div>
       <div class="legend-ctrl"><button id="tipAll" class="tip-btn" title="定義を表示">i</button></div>
     </div>
 
@@ -163,13 +174,11 @@
       <div class="legend-count" id="cnt-green">0</div>
       <div class="legend-ctrl"><label><input type="checkbox" id="chk-green"></label></div>
     </div>
-
-    <div class="legend-note">交換必須「40件以上」なら
-赤色ポートのみ優先巡回！</div>
-
-    <!-- Tips表示ボックス（共通） -->
-    <div id="tipBox"></div>
   </div>
+
+  <!-- 凡例の注意文：枠外に独立配置（レイアウトに影響させない） -->
+  <div id="legend-note">交換必須「40件以上」なら
+赤色ポートのみ優先巡回！</div>
 
   <!-- 未読ありのときだけ出る「更新」ボタン -->
   <button id="refreshBtn">更新<span id="refreshBadge"></span></button>
@@ -191,12 +200,23 @@
     </div>
   </div>
 
+  <!-- Tips 背景と本体 -->
+  <div id="tipBackdrop"></div>
+  <div id="tipBox"></div>
+
   <script>
     /* ── マップ（CARTO） ── */
     const MAP=L.map('map',{zoomControl:false}).setView([35.0116,135.7681],12);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
       {maxZoom:19,subdomains:'abcd'}).addTo(MAP);
     const markersLayer=L.layerGroup().addTo(MAP);
+
+    /* ── 追従OFFの誤判定を抑制：プログラム操作中は無視 ── */
+    let suppressUserOff=false;
+    function withProgrammatic(fn, ms=600){
+      suppressUserOff=true;
+      try{ fn(); } finally{ setTimeout(()=>{ suppressUserOff=false; }, ms); }
+    }
 
     /* ── 凡例UI ── */
     const chkYellow=document.getElementById('chk-yellow');
@@ -205,7 +225,7 @@
     chkYellow.addEventListener('change', ()=>{ userTouchedYellow=true; redrawLast(); });
     chkGreen .addEventListener('change', ()=>{ userTouchedGreen =true; redrawLast(); });
 
-    /* ── ステータス判定（ご指定の新定義） ──
+    /* ── ステータス判定（指定定義） ──
        ●交換必須（赤）：
          - w>=6  または  (c>=3 かつ w>=6)  または  ポート外
        ●交換可能（黄）：
@@ -311,8 +331,7 @@
       const center=MAP.getCenter(), zoom=MAP.getZoom();
       lastDataJson = pendingText; pendingText="";
       const data=JSON.parse(lastDataJson);
-      render(data);
-      MAP.setView(center, zoom, { animate:false });
+      withProgrammatic(()=>{ render(data); MAP.setView(center, zoom, { animate:false }); }, 400);
       refreshBadge.style.display='none';
       refreshBtn.style.display='none';
     });
@@ -322,7 +341,7 @@
       if(res.ok){ lastDataJson=await res.text(); render(JSON.parse(lastDataJson)); }
     }catch(e){ console.error(e); } })();
 
-    /* ── 現在地（タップ直後だけ追従ON。ズーム/ドラッグで即OFF） ── */
+    /* ── 現在地（タップ直後だけ追従ON。ズーム/ドラッグでOFF） ── */
     let meMarker=null, meCircle=null, watchId=null, lastMe=null, following=false;
     const btn=document.getElementById('locateBtn');
 
@@ -339,10 +358,12 @@
         meCircle.setLatLng([lat,lng]).setRadius(acc||30);
       }
       lastMe={lat,lng};
-      if(following){ MAP.panTo([lat,lng]); }
+      if(following){
+        withProgrammatic(()=> MAP.panTo([lat,lng]), 400);
+      }
     }
 
-    // タップ直後だけ追従ON → ズーム/ドラッグで即OFF
+    // タップ直後だけ追従ON → ユーザーズーム/ドラッグでOFF
     btn.addEventListener('click', ()=>{
       if(!('geolocation' in navigator)){ alert('位置情報が利用できません'); return; }
 
@@ -359,17 +380,25 @@
           const {latitude,longitude,accuracy}=pos.coords;
           showOrUpdateMe(latitude,longitude,accuracy);
           const z=15;
-          if(MAP.getZoom()<z){ MAP.setView([latitude,longitude],z,{animate:true}); }
-          else { MAP.panTo([latitude,longitude],{animate:true}); }
+          withProgrammatic(()=>{
+            if(MAP.getZoom()<z){ MAP.setView([latitude,longitude],z,{animate:true}); }
+            else { MAP.panTo([latitude,longitude],{animate:true}); }
+          }, 700);
         },
-        err=>{ if(lastMe){ MAP.panTo([lastMe.lat,lastMe.lng],{animate:true}); } else { alert('現在地を取得できません：'+err.message); } },
+        err=>{
+          if(lastMe){
+            withProgrammatic(()=> MAP.panTo([lastMe.lat,lastMe.lng],{animate:true}), 500);
+          }else{
+            alert('現在地を取得できません：'+err.message);
+          }
+        },
         { enableHighAccuracy:true, timeout:10000, maximumAge:5000 }
       );
     });
 
-    // ユーザー操作で追従OFF（ズーム/ドラッグ）
-    MAP.on('dragstart', ()=>{ if(following){ following=false; updateFollowIcon(); stopWatch(); } });
-    MAP.on('zoomstart', ()=>{ if(following){ following=false; updateFollowIcon(); stopWatch(); } });
+    // ユーザー操作で追従OFF（ズーム/ドラッグ）※プログラム操作中は抑制
+    MAP.on('dragstart', ()=>{ if(!suppressUserOff && following){ following=false; updateFollowIcon(); stopWatch(); } });
+    MAP.on('zoomstart', ()=>{ if(!suppressUserOff && following){ following=false; updateFollowIcon(); stopWatch(); } });
 
     // 起動時：一度だけ現在地マーク（追従なし）
     if('geolocation' in navigator){
@@ -379,30 +408,42 @@
       );
     }
 
-    /* ── 凡例 Tips（3区分を1つに統合） ── */
+    /* ── Tips：1つに統合。箇条書きで読みやすく。閉じやすく（×/外側/Esc） ── */
+    const tipBackdrop=document.getElementById('tipBackdrop');
     const tipBox=document.getElementById('tipBox');
     const tipAll=document.getElementById('tipAll');
-    const tipHtml=`<span class="close" id="tipClose">×</span>
-<b>交換必須</b>
-・交換比重 <b>6以上</b>、または
-・<b>交換台数3台以上</b> かつ 交換比重 <b>6以上</b>、または
-・<b>放置車両（ポート外）</b>
-
-<b>交換可能</b>
-・<b>交換台数3台以上</b>、または
-・<b>交換台数2台以上</b> かつ 交換比重 <b>5に等しい</b>
-
-<b>経過観測</b>
-・<b>交換台数2台以上</b>、または
-・交換比重 <b>2以上</b>`;
-    tipAll.addEventListener('click', ()=>{
+    const tipHtml=`
+      <span class="close" id="tipClose">×</span>
+      <h4><span class="dot" style="color:#e60026;">●</span>交換必須</h4>
+      <ul>
+        <li>交換比重 <b>6以上</b></li>
+        <li><b>交換台数3台以上</b> かつ 交換比重 <b>6以上</b></li>
+        <li><b>放置車両（ポート外）</b></li>
+      </ul>
+      <h4><span class="dot" style="color:#ff8c00;">●</span>交換可能</h4>
+      <ul>
+        <li><b>交換台数3台以上</b></li>
+        <li><b>交換台数2台以上</b> かつ 交換比重 <b>5に等しい</b></li>
+      </ul>
+      <h4><span class="dot" style="color:#6fa86f;">●</span>経過観測</h4>
+      <ul>
+        <li><b>交換台数2台以上</b></li>
+        <li>交換比重 <b>2以上</b></li>
+      </ul>
+    `;
+    function openTips(){
       tipBox.innerHTML=tipHtml;
+      tipBackdrop.style.display='block';
       tipBox.style.display='block';
-      document.getElementById('tipClose')?.addEventListener('click',()=> tipBox.style.display='none');
-    });
-    document.addEventListener('click',(e)=>{
-      const withinLegend=e.target.closest('#legend-top'); if(!withinLegend) tipBox.style.display='none';
-    });
+      document.getElementById('tipClose')?.addEventListener('click', closeTips);
+    }
+    function closeTips(){
+      tipBackdrop.style.display='none';
+      tipBox.style.display='none';
+    }
+    tipAll.addEventListener('click', openTips);
+    tipBackdrop.addEventListener('click', closeTips);
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeTips(); });
   </script>
 </body>
 </html>
