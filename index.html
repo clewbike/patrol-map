@@ -13,7 +13,7 @@
   <style>
     html, body, #map { height:100%; margin:0; background:#f7f7f7; }
 
-    /* 左上：凡例（タイトル無し） */
+    /* 左上：凡例 */
     #legend-top{
       position:absolute; top:8px; left:8px;
       background:rgba(255,255,255,.92); padding:6px 10px; border-radius:6px;
@@ -21,13 +21,13 @@
       box-shadow:0 1px 4px rgba(0,0,0,.25); z-index:1000; user-select:none;
     }
 
-    /* 右下：HUD（更新日時＋クレジット：縦並び固定・押し込み） */
+    /* 右下：HUD（更新日時＋クレジット） */
     #hud{
       position:absolute; right:4px; bottom:4px; z-index:1000;
       display:flex; flex-direction:column; align-items:flex-end; gap:4px;
       pointer-events:none;
     }
-    /* 更新日時（ややコンパクト） */
+
     #legend{
       background:rgba(0,0,0,.78); color:#fff;
       padding:5px 10px; border-radius:6px;
@@ -35,7 +35,7 @@
       box-shadow:0 1px 3px rgba(0,0,0,.3);
       max-width:60vw;
     }
-    /* クレジット（legendの“下”に固定。枠なし・極小） */
+
     #credit{
       font:10px/1 "Segoe UI","Helvetica Neue",sans-serif; color:#ddd;
       white-space:nowrap; pointer-events:auto;
@@ -43,18 +43,23 @@
     }
     #credit a{ color:#ddd; text-decoration:none; }
 
-    /* ポップアップ内の小バッジ */
+    /* バッジ */
     .badge{ display:inline-block; min-width:1.6em; text-align:center; padding:1px 4px; border-radius:8px; background:#eee; font-size:11px; }
 
-    /* マーカー視認性：白縁／標準帰属非表示（自前クレジットを表示） */
+    /* Leaflet */
     .leaflet-interactive{ stroke:#fff !important; stroke-width:1.4 !important; }
     .leaflet-control-zoom{ display:none !important; }
     .leaflet-control-attribution{ display:none !important; }
 
-    /* 🔍 CARTOタイルを“少しだけ”くっきり（川・道・等高線が見やすく） */
+    /* CARTOタイル（下地：明るめで淡い） */
     .leaflet-tile.carto-tiles{
-      filter: contrast(1.18) saturate(1.22) brightness(0.96);
-      image-rendering: -webkit-optimize-contrast;
+      filter: contrast(1.1) saturate(1.1) brightness(1.02);
+    }
+
+    /* Stamen Terrain（上層：半透明） */
+    .leaflet-tile.stamen-terrain{
+      opacity: 0.55;
+      mix-blend-mode: multiply;
       image-rendering: crisp-edges;
     }
   </style>
@@ -69,51 +74,55 @@
     <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見
   </div>
 
-  <!-- 右下：更新日時 + その“下”にクレジット -->
+  <!-- 右下：更新日時 + クレジット -->
   <div id="hud">
     <div id="legend">読み込み中…</div>
     <div id="credit">
       © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> /
+      © <a href="https://stamen.com" target="_blank" rel="noopener">Stamen</a> /
       © <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OSM</a>
     </div>
   </div>
 
   <script>
-    /* ====== マップ（CARTO Light / APIキー不要 / ラベル込み） ====== */
+    // ====== マップ初期化 ======
     const MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 12);
 
+    // CARTOベース（下層）
     L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-      { maxZoom: 20, subdomains: 'abcd', attribution: '', className: 'carto-tiles' }
+      { maxZoom: 19, subdomains: 'abcd', attribution: '', className: 'carto-tiles' }
     ).addTo(MAP);
 
-    // マーカー用レイヤ
+    // Stamen Terrain（上層）
+    L.tileLayer(
+      'https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg',
+      { maxZoom: 18, attribution: '', className: 'stamen-terrain' }
+    ).addTo(MAP);
+
+    // ピン表示レイヤ
     const markersLayer = L.layerGroup().addTo(MAP);
 
-    /* ====== ピン色ルール（基準変更：台数3以上→要交換） ======
-       - 要交換：赤（count>=3 または weight>=10）
-       - 交換推奨：橙（weight==5）
-       - 様子見：淡緑（weight 3〜4）
-       - 非表示：上記以外
-    ============================================== */
+    // ====== ピンの色設定 ======
+    // 台数3以上 or 比重>=10 → 要交換（赤）を共通色で統一
     function colorBy(weight, count){
       const w = Number(weight)||0, c = Number(count)||0;
-      if (c >= 3) return '#e60026';    // 台数優先：要交換（赤）
-      if (w >= 10) return '#b3001f';   // 比重高：要交換（濃赤）
-      if (w === 5) return '#ff8c00';   // 交換推奨（橙）
-      if (w >= 3)  return '#b7e1a1';   // 様子見（淡緑）
+      if (c >= 3 || w >= 10) return '#e60026';  // ←共通赤
+      if (w === 5) return '#ff8c00';            // 交換推奨
+      if (w >= 3)  return '#b7e1a1';            // 様子見
       return null;
     }
+
     function radiusByCount(c){ return Math.max(6, Math.min(22, 6 + (Number(c)||0) * 2)); }
 
-    /* ====== JSON取得 ====== */
+    // ====== JSONロード ======
     async function loadData(){
-      const res = await fetch('data.json?_=' + Date.now()); // キャッシュ回避
+      const res = await fetch('data.json?_=' + Date.now());
       if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
 
-    /* ====== 描画 ====== */
+    // ====== 描画 ======
     function render(data){
       markersLayer.clearLayers();
       const bounds = [];
@@ -142,20 +151,19 @@
         L.circleMarker([lat,lng], {
           radius: radiusByCount(count),
           color:'#fff', weight:1.4,
-          fillColor: fill, fillOpacity:.92
+          fillColor: fill, fillOpacity:.9
         }).bindPopup(html).addTo(markersLayer);
 
         bounds.push([lat,lng]);
       });
 
-      if (bounds.length) { MAP.fitBounds(bounds, {padding:[20,20]}); }
+      if (bounds.length) MAP.fitBounds(bounds, {padding:[20,20]});
 
-      // 右下：更新日時
       const latest = (data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0] || '-';
       document.getElementById('legend').innerHTML = `<strong>更新日時：${latest}</strong>`;
     }
 
-    // 初回 & 5分ごとの JSONのみ更新
+    // 初回 & 5分おき更新
     (async ()=>{ try{ render(await loadData()); }catch(e){ alert(e.message); } })();
     setInterval(async ()=>{ try{ render(await loadData()); }catch(e){} }, 300000);
   </script>
