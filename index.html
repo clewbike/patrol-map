@@ -94,7 +94,7 @@
     <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見
   </div>
 
-  <!-- 現在地FAB -->
+  <!-- 現在地ボタン -->
   <div id="locateFab">
     <button id="locateBtn" class="fab-btn idle" title="現在地へ移動 / 追従ON">
       <svg viewBox="0 0 24 24"><path d="M12 2l6.5 18.5-6.5-3-6.5 3L12 2z"></path></svg>
@@ -120,7 +120,7 @@
 
     const markersLayer = L.layerGroup().addTo(MAP);
 
-    // 状態判定
+    // ステータス判定
     function statusOf(weight, count){
       const w=Number(weight)||0, c=Number(count)||0;
       if(c>=3||w>=10) return 'urgent';
@@ -138,14 +138,8 @@
     }
 
     let didInitialFit=false, userMoved=false;
-    let zoomingNow=false;
-
-    // ズーム中フラグ管理
-    MAP.on('zoomstart', ()=>{ zoomingNow=true; });
-    MAP.on('zoomend', ()=>{ setTimeout(()=>{ zoomingNow=false; },400); });
-
-    // ドラッグ時のみ追従OFF
     MAP.on('dragstart', ()=>{ userMoved=true; if(following){ following=false; updateFollowIcon(); stopWatch(); } });
+    MAP.on('zoomstart', ()=>{ if(following){ following=false; updateFollowIcon(); stopWatch(); } });
 
     function render(data){
       markersLayer.clearLayers();
@@ -199,8 +193,7 @@
         meCircle.setLatLng([lat,lng]).setRadius(acc||30);
       }
       lastMe={lat,lng};
-      // ズーム中はパンしない
-      if(following && !zoomingNow) MAP.panTo([lat,lng]);
+      if(following) MAP.panTo([lat,lng]);
     }
 
     // 📍ボタン押下
