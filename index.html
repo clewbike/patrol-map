@@ -31,11 +31,13 @@
       pointer-events:none;
     }
     #legend{
+      position: relative;
       background:rgba(0,0,0,.78); color:#fff;
       padding:5px 10px; border-radius:6px;
       font:12px/1.5 "Segoe UI","Helvetica Neue",sans-serif;
       box-shadow:0 1px 3px rgba(0,0,0,.3);
       max-width:60vw;
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
     }
     #credit{
       font:10px/1 "Segoe UI","Helvetica Neue",sans-serif; color:#ddd;
@@ -43,51 +45,44 @@
     }
     #credit a{ color:#ddd; text-decoration:none; }
 
+    /* 現在地ボタン（更新日時パネル右上） */
+    #locateBtn {
+      pointer-events:auto;
+      background:rgba(255,255,255,.85);
+      border:none; border-radius:4px;
+      padding:2px 6px;
+      font-size:14px;
+      cursor:pointer;
+      box-shadow:0 1px 3px rgba(0,0,0,0.4);
+      display:flex; align-items:center; justify-content:center;
+    }
+    #locateBtn:hover { background:rgba(255,255,255,1); }
+
     /* タグ */
     .badge{ display:inline-block; min-width:1.6em; text-align:center; padding:1px 6px; border-radius:10px; background:#eee; font-size:11px; }
     .tag{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:bold; line-height:1; color:#fff; vertical-align:middle; }
-    .tag-urgent{ background:#e60026; }      /* 要交換 */
-    .tag-watch-yellow{ background:#ff8c00; }/* 様子見（黄） */
-    .tag-watch-green{ background:#6fa86f; } /* 様子見（緑） */
+    .tag-urgent{ background:#e60026; }
+    .tag-watch-yellow{ background:#ff8c00; }
+    .tag-watch-green{ background:#6fa86f; }
 
-    /* Leaflet調整 */
     .leaflet-interactive{ stroke:#fff !important; stroke-width:1.3 !important; }
     .leaflet-control-zoom{ display:none !important; }
     .leaflet-control-attribution{ display:none !important; }
 
-    /* CARTOタイル：やや濃く鮮明に */
     .leaflet-tile.carto-tiles{
       filter: contrast(1.15) saturate(1.12) brightness(0.97);
     }
-
-    /* Stamen Terrain（地形・川・山をクッキリ） */
     .leaflet-tile.stamen-terrain{
       opacity: 0.65;
       mix-blend-mode: multiply;
       image-rendering: crisp-edges;
     }
 
-    /* 現在地ボタン（左下） */
-    .locate-control {
-      position: absolute;
-      left: 8px; bottom: 8px;
-      z-index: 1000;
-      pointer-events: auto; /* クリックを受ける */
-    }
-    .locate-btn {
-      appearance: none; border: none; cursor: pointer;
-      background: rgba(255,255,255,.95);
-      padding: 8px 10px; border-radius: 6px;
-      box-shadow: 0 1px 4px rgba(0,0,0,.25);
-      font: 12px/1 "Segoe UI","Helvetica Neue",sans-serif;
-    }
-    .locate-btn.active { background: #e6f3ff; }
-    .locate-btn:disabled { opacity: .5; cursor: not-allowed; }
-
-    /* 現在地の見た目 */
+    /* 現在地マーカー */
     .me-dot {
       width: 12px; height: 12px; border-radius: 50%;
-      background: #2c7be5; border: 2px solid #fff; box-shadow: 0 0 0 2px rgba(44,123,229,.35);
+      background: #2c7be5; border: 2px solid #fff;
+      box-shadow: 0 0 0 2px rgba(44,123,229,.35);
     }
   </style>
 </head>
@@ -101,14 +96,12 @@
     <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見
   </div>
 
-  <!-- 左下：現在地ボタン -->
-  <div class="locate-control">
-    <button id="locateBtn" class="locate-btn" title="現在地にフォーカス／追従ON/OFF">現在地</button>
-  </div>
-
   <!-- 右下：更新日時＋クレジット -->
   <div id="hud">
-    <div id="legend">読み込み中…</div>
+    <div id="legend">
+      <div><strong>更新日時：</strong><span id="updateTime">読み込み中…</span></div>
+      <button id="locateBtn" title="現在地に移動">📍</button>
+    </div>
     <div id="credit">
       © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> /
       © <a href="https://stamen.com" target="_blank" rel="noopener">Stamen</a> /
@@ -119,15 +112,13 @@
   <script>
     /* ===== マップ設定（CARTO + Terrain） ===== */
     const MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 12);
-
     L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-      { maxZoom: 19, subdomains: 'abcd', attribution: '', className: 'carto-tiles' }
+      { maxZoom: 19, subdomains: 'abcd', className: 'carto-tiles' }
     ).addTo(MAP);
-
     L.tileLayer(
       'https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg',
-      { maxZoom: 18, attribution: '', className: 'stamen-terrain' }
+      { maxZoom: 18, className: 'stamen-terrain' }
     ).addTo(MAP);
 
     const markersLayer = L.layerGroup().addTo(MAP);
@@ -141,21 +132,19 @@
       return null;
     }
     function colorByStatus(status){
-      if (status === 'urgent')       return '#e60026'; // 要交換
-      if (status === 'watch-yellow') return '#ff8c00'; // 様子見（黄）
-      if (status === 'watch-green')  return '#b7e1a1'; // 様子見（緑）
+      if (status === 'urgent')       return '#e60026';
+      if (status === 'watch-yellow') return '#ff8c00';
+      if (status === 'watch-green')  return '#b7e1a1';
       return null;
     }
     function radiusByCount(c){ return Math.max(6, Math.min(22, 6 + (Number(c)||0) * 2)); }
 
-    /* ===== JSONロード ===== */
     async function loadData(){
       const res = await fetch('data.json?_=' + Date.now());
       if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
 
-    // ▼ 位置維持のためのフラグ
     let didInitialFit = false;
     let userMoved = false;
     MAP.on('movestart', () => { userMoved = true; });
@@ -196,82 +185,45 @@
         bounds.push([lat,lng]);
       });
 
-      // ★ 初回のみ自動フィット（ユーザーが動かしていれば行わない）
       if (bounds.length && !didInitialFit && !userMoved) {
         MAP.fitBounds(bounds, {padding:[20,20]});
         didInitialFit = true;
       }
 
-      // 右下：更新日時
       const latest = (data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0] || '-';
-      document.getElementById('legend').innerHTML = `<strong>更新日時：${latest}</strong>`;
+      document.getElementById('updateTime').textContent = latest;
     }
 
-    // 初回 & 5分ごとの JSON更新（ビューは維持）
     (async ()=>{ try{ render(await loadData()); }catch(e){ alert(e.message); } })();
     setInterval(async ()=>{ try{ render(await loadData()); }catch(e){} }, 300000);
 
-    /* ===== 現在地フォーカス（追従ON/OFF） ===== */
+    /* ===== 現在地表示 + フォーカスボタン ===== */
+    let meMarker = null, meCircle = null;
     const locateBtn = document.getElementById('locateBtn');
-    let watchId = null;
-    let meMarker = null;
-    let meCircle = null;
-    let follow = false; // 追従フラグ
 
-    function updateMe(lat, lng, acc){
-      if (!meMarker) {
-        const div = L.divIcon({ className: '', html: '<div class="me-dot"></div>', iconSize: [16,16], iconAnchor: [8,8] });
-        meMarker = L.marker([lat, lng], { icon: div, interactive:false }).addTo(MAP);
-        meCircle = L.circle([lat, lng], { radius: acc||30, color:'#2c7be5', weight:1, fillColor:'#2c7be5', fillOpacity:0.12, interactive:false }).addTo(MAP);
-      } else {
-        meMarker.setLatLng([lat, lng]);
-        meCircle.setLatLng([lat, lng]).setRadius(acc||30);
-      }
-      if (follow) {
-        MAP.panTo([lat, lng], { animate:true });
-      }
-    }
-
-    function startWatch(){
+    locateBtn.addEventListener('click', ()=>{
       if (!('geolocation' in navigator)) {
         alert('この端末では位置情報が利用できません。');
         return;
       }
-      follow = true;
-      locateBtn.classList.add('active');
-      locateBtn.textContent = '現在地（追従中）';
-
-      watchId = navigator.geolocation.watchPosition(
+      navigator.geolocation.getCurrentPosition(
         (pos)=>{
           const { latitude, longitude, accuracy } = pos.coords;
-          updateMe(latitude, longitude, accuracy);
+          // 既存マーカーがあれば更新
+          if (!meMarker) {
+            const div = L.divIcon({ className: '', html: '<div class="me-dot"></div>', iconSize:[16,16], iconAnchor:[8,8] });
+            meMarker = L.marker([latitude, longitude], { icon: div, interactive:false }).addTo(MAP);
+            meCircle = L.circle([latitude, longitude], { radius: accuracy||30, color:'#2c7be5', weight:1, fillColor:'#2c7be5', fillOpacity:0.12, interactive:false }).addTo(MAP);
+          } else {
+            meMarker.setLatLng([latitude, longitude]);
+            meCircle.setLatLng([latitude, longitude]).setRadius(accuracy||30);
+          }
+          MAP.panTo([latitude, longitude]);
         },
-        (err)=>{
-          follow = false;
-          locateBtn.classList.remove('active');
-          locateBtn.textContent = '現在地';
-          alert('現在地を取得できませんでした：' + err.message);
-        },
-        { enableHighAccuracy:true, timeout:10000, maximumAge:5000 }
+        (err)=>{ alert('現在地を取得できませんでした：' + err.message); },
+        { enableHighAccuracy:true, timeout:10000 }
       );
-    }
-
-    function stopWatch(){
-      follow = false;
-      locateBtn.classList.remove('active');
-      locateBtn.textContent = '現在地';
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-      }
-      // 現在地の表示自体は残す（消したい場合は下2行を有効化）
-      // if (meMarker) { MAP.removeLayer(meMarker); meMarker = null; }
-      // if (meCircle) { MAP.removeLayer(meCircle); meCircle = null; }
-    }
-
-    locateBtn.addEventListener('click', ()=>{
-      if (watchId === null) startWatch(); else stopWatch();
-    }, { passive:true });
+    });
   </script>
 </body>
 </html>
