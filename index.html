@@ -213,14 +213,14 @@
         pos=>{
           const {latitude,longitude,accuracy}=pos.coords;
           showOrUpdateMe(latitude,longitude,accuracy);
-          const targetZoom=15;
+          const targetZoom=14;
           if(MAP.getZoom()<targetZoom){ MAP.setView([latitude,longitude],targetZoom,{animate:true}); }
           else{ MAP.panTo([latitude,longitude],{animate:true}); }
         },
         err=>{
           if(lastMe){
             const {lat,lng}=lastMe;
-            const targetZoom=15;
+            const targetZoom=14;
             if(MAP.getZoom()<targetZoom){ MAP.setView([lat,lng],targetZoom,{animate:true}); }
             else{ MAP.panTo([lat,lng],{animate:true}); }
           }else alert('現在地を取得できませんでした：'+err.message);
