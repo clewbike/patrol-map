@@ -13,7 +13,7 @@
   <style>
     html, body, #map { height:100%; margin:0; background:#f7f7f7; }
 
-    /* 左上：凡例（簡素） */
+    /* 左上：凡例 */
     #legend-top{
       position:absolute; top:8px; left:8px;
       background:rgba(255,255,255,.92);
@@ -23,7 +23,7 @@
       z-index:1000; user-select:none;
     }
 
-    /* 右下：HUD（更新日時＋クレジット） */
+    /* 右下：更新日時＋クレジット */
     #hud{
       position:absolute; right:4px; bottom:4px; z-index:1000;
       display:flex; flex-direction:column; align-items:flex-end; gap:4px;
@@ -43,7 +43,7 @@
     }
     #credit a{ color:#ddd; text-decoration:none; }
 
-    /* 現在地ボタン（更新日時ボックスの“上”に独立配置） */
+    /* 現在地ボタン */
     #locateFab{
       position:absolute; right:8px; bottom:64px; z-index:1000;
       pointer-events:auto;
@@ -60,22 +60,21 @@
     .fab-btn:active{ transform:scale(0.95); }
     .fab-btn:hover{ box-shadow:0 6px 14px rgba(0,0,0,.3); }
     .fab-btn svg{ width:24px; height:24px; transition: fill .2s; }
-    .following svg{ fill:#2c7be5; } /* 追従中（青） */
-    .idle svg{ fill:#777; }         /* 非追従（グレー） */
+    .following svg{ fill:#2c7be5; }
+    .idle svg{ fill:#777; }
 
-    /* ポップアップ・タグ */
+    /* ポップアップ */
     .badge{ display:inline-block; min-width:1.6em; text-align:center; padding:1px 6px; border-radius:10px; background:#eee; font-size:11px; }
     .tag{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:bold; line-height:1; color:#fff; vertical-align:middle; }
     .tag-urgent{ background:#e60026; }
     .tag-watch-yellow{ background:#ff8c00; }
     .tag-watch-green{ background:#6fa86f; }
 
-    /* Leafletタイル調整 */
-    .leaflet-interactive{ stroke:#fff !important; stroke-width:1.3 !important; }
+    /* マップ */
     .leaflet-control-zoom{ display:none !important; }
     .leaflet-control-attribution{ display:none !important; }
     .leaflet-tile.carto-tiles{ filter:contrast(1.15) saturate(1.12) brightness(0.97); }
-    .leaflet-tile.stamen-terrain{ opacity:0.65; mix-blend-mode:multiply; image-rendering:crisp-edges; }
+    .leaflet-tile.stamen-terrain{ opacity:0.65; mix-blend-mode:multiply; }
 
     /* 現在地マーカー */
     .me-dot {
@@ -98,7 +97,6 @@
   <!-- 現在地FAB -->
   <div id="locateFab">
     <button id="locateBtn" class="fab-btn idle" title="現在地へ移動 / 追従ON">
-      <!-- Googleマップ風 上向きナビ矢印 -->
       <svg viewBox="0 0 24 24"><path d="M12 2l6.5 18.5-6.5-3-6.5 3L12 2z"></path></svg>
     </button>
   </div>
@@ -114,7 +112,6 @@
   </div>
 
   <script>
-    /* ===== マップ設定（CARTO + Terrain） ===== */
     const MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 12);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
       { maxZoom:19, subdomains:'abcd', className:'carto-tiles' }).addTo(MAP);
@@ -123,18 +120,17 @@
 
     const markersLayer = L.layerGroup().addTo(MAP);
 
-    /* ===== ステータス判定 ===== */
+    // 状態判定
     function statusOf(weight, count){
       const w=Number(weight)||0, c=Number(count)||0;
-      if(c>=3||w>=10) return'urgent';
-      if(w===5) return'watch-yellow';
-      if(w>=3) return'watch-green';
+      if(c>=3||w>=10) return 'urgent';
+      if(w===5) return 'watch-yellow';
+      if(w>=3) return 'watch-green';
       return null;
     }
     function colorByStatus(s){ return s==='urgent'?'#e60026':s==='watch-yellow'?'#ff8c00':s==='watch-green'?'#b7e1a1':null; }
     function radiusByCount(c){ return Math.max(6, Math.min(22, 6 + (Number(c)||0)*2)); }
 
-    /* ===== JSONロード ===== */
     async function loadData(){
       const res=await fetch('data.json?_='+Date.now());
       if(!res.ok) throw new Error('data.jsonを取得できません');
@@ -142,7 +138,13 @@
     }
 
     let didInitialFit=false, userMoved=false;
-    // ✅ ドラッグで動かしたときだけ追従OFF（ズームではOFFにしない）
+    let zoomingNow=false;
+
+    // ズーム中フラグ管理
+    MAP.on('zoomstart', ()=>{ zoomingNow=true; });
+    MAP.on('zoomend', ()=>{ setTimeout(()=>{ zoomingNow=false; },400); });
+
+    // ドラッグ時のみ追従OFF
     MAP.on('dragstart', ()=>{ userMoved=true; if(following){ following=false; updateFollowIcon(); stopWatch(); } });
 
     function render(data){
@@ -175,7 +177,6 @@
     (async()=>{try{render(await loadData());}catch(e){alert(e.message);}})();
     setInterval(async()=>{try{render(await loadData());}catch(e){}},300000);
 
-    /* ===== 現在地：Googleマップ風 追従 ===== */
     let meMarker=null, meCircle=null, watchId=null, lastMe=null;
     let following=false;
     const btn=document.getElementById('locateBtn');
@@ -187,6 +188,7 @@
     function stopWatch(){
       if(watchId){ navigator.geolocation.clearWatch(watchId); watchId=null; }
     }
+
     function showOrUpdateMe(lat,lng,acc){
       if(!meMarker){
         const div=L.divIcon({className:'',html:'<div class="me-dot"></div>',iconSize:[16,16],iconAnchor:[8,8]});
@@ -197,14 +199,14 @@
         meCircle.setLatLng([lat,lng]).setRadius(acc||30);
       }
       lastMe={lat,lng};
-      if(following) MAP.panTo([lat,lng]);
+      // ズーム中はパンしない
+      if(following && !zoomingNow) MAP.panTo([lat,lng]);
     }
 
-    // 📍押下：即座に追従ON＆アイコン青 → 位置取得→ ズーム16でフォーカス
+    // 📍ボタン押下
     btn.addEventListener('click', ()=>{
       if(!('geolocation' in navigator)){ alert('位置情報が利用できません'); return; }
 
-      // 1) 先に追従ON（UX：色を即青に）
       if(!following){
         following=true; updateFollowIcon();
         watchId=navigator.geolocation.watchPosition(
@@ -214,36 +216,26 @@
         );
       }
 
-      // 2) 最新位置でセンタリング（最低ズーム16）
       navigator.geolocation.getCurrentPosition(
         pos=>{
-          const { latitude, longitude, accuracy } = pos.coords;
-          showOrUpdateMe(latitude, longitude, accuracy);
-          const targetZoom = 16;
-          if (MAP.getZoom() < targetZoom) {
-            MAP.setView([latitude, longitude], targetZoom, { animate:true });
-          } else {
-            MAP.panTo([latitude, longitude], { animate:true });
-          }
+          const {latitude,longitude,accuracy}=pos.coords;
+          showOrUpdateMe(latitude,longitude,accuracy);
+          const targetZoom=15;
+          if(MAP.getZoom()<targetZoom){ MAP.setView([latitude,longitude],targetZoom,{animate:true}); }
+          else{ MAP.panTo([latitude,longitude],{animate:true}); }
         },
         err=>{
-          if (lastMe) {
-            const {lat,lng} = lastMe;
-            const targetZoom = 16;
-            if (MAP.getZoom() < targetZoom) {
-              MAP.setView([lat, lng], targetZoom, { animate:true });
-            } else {
-              MAP.panTo([lat, lng], { animate:true });
-            }
-          } else {
-            alert('現在地を取得できませんでした：' + err.message);
-          }
+          if(lastMe){
+            const {lat,lng}=lastMe;
+            const targetZoom=15;
+            if(MAP.getZoom()<targetZoom){ MAP.setView([lat,lng],targetZoom,{animate:true}); }
+            else{ MAP.panTo([lat,lng],{animate:true}); }
+          }else alert('現在地を取得できませんでした：'+err.message);
         },
         { enableHighAccuracy:true, timeout:10000, maximumAge:5000 }
       );
     });
 
-    // 起動時：許可あれば一度だけ現在地マークを置く（フォーカスはしない）
     if('geolocation' in navigator){
       navigator.geolocation.getCurrentPosition(
         pos=>{ const {latitude,longitude,accuracy}=pos.coords; showOrUpdateMe(latitude,longitude,accuracy); },
