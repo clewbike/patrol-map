@@ -57,12 +57,12 @@
 
     /* CARTOタイル：やや濃く鮮明に */
     .leaflet-tile.carto-tiles{
-      filter: contrast(20.20) saturate(23.15) brightness(10.95);
+      filter: contrast(1.15) saturate(1.12) brightness(0.97);
     }
 
     /* Stamen Terrain（地形・川・山をクッキリ） */
     .leaflet-tile.stamen-terrain{
-      opacity: 70.00; /* 控えめに重ねる */
+      opacity: 0.65;
       mix-blend-mode: multiply;
       image-rendering: crisp-edges;
     }
@@ -74,8 +74,8 @@
   <!-- 左上：凡例 -->
   <div id="legend-top">
     <span style="color:#e60026;font-weight:bold;">●</span> 要交換<br>
-    <span style="color:#ff8c00;font-weight:bold;">●</span> 様子見<br>
-    <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見
+    <span style="color:#ff8c00;font-weight:bold;">●</span> 様子見（比重5）<br>
+    <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見（比重3〜4）
   </div>
 
   <!-- 右下：更新日時＋クレジット -->
@@ -124,11 +124,18 @@
 
     function radiusByCount(c){ return Math.max(6, Math.min(22, 6 + (Number(c)||0) * 2)); }
 
+    /* ===== JSONロードと再描画 ===== */
     async function loadData(){
       const res = await fetch('data.json?_=' + Date.now());
       if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
+
+    // ▼ 状態管理フラグ
+    let didInitialFit = false;
+    let userMoved = false;
+    MAP.on('movestart', () => { userMoved = true; });
+    MAP.on('zoomstart', () => { userMoved = true; });
 
     function render(data){
       markersLayer.clearLayers();
@@ -165,13 +172,20 @@
         bounds.push([lat,lng]);
       });
 
-      if (bounds.length) MAP.fitBounds(bounds, {padding:[20,20]});
+      // ★ 位置・ズーム維持（初回のみ自動調整）
+      if (bounds.length && !didInitialFit && !userMoved) {
+        MAP.fitBounds(bounds, {padding:[20,20]});
+        didInitialFit = true;
+      }
 
+      // 更新日時
       const latest = (data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0] || '-';
       document.getElementById('legend').innerHTML = `<strong>更新日時：${latest}</strong>`;
     }
 
+    // 初回読み込み
     (async ()=>{ try{ render(await loadData()); }catch(e){ alert(e.message); } })();
+    // 5分ごとに JSON のみ更新（ビュー維持）
     setInterval(async ()=>{ try{ render(await loadData()); }catch(e){} }, 300000);
   </script>
 </body>
