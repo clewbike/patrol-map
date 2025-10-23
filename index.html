@@ -48,21 +48,21 @@
       color:#fff; vertical-align:middle;
     }
     .tag-urgent{ background:#e60026; }      /* 要交換（共通の赤） */
-    .tag-recommend{ background:#ff8c00; }   /* 交換推奨（橙） */
-    .tag-watch{ background:#6fa86f; }       /* 様子見（淡緑より少し濃いめ） */
+    .tag-watch-yellow{ background:#ffcc00; color:#333; }  /* 様子見（黄色） */
+    .tag-watch-green{ background:#6fa86f; } /* 様子見（緑） */
 
-    /* マーカー視認性：白縁／標準帰属非表示（自前クレジットを表示） */
+    /* Leaflet制御ボタン・コピーライト非表示 */
     .leaflet-interactive{ stroke:#fff !important; stroke-width:1.4 !important; }
     .leaflet-control-zoom{ display:none !important; }
     .leaflet-control-attribution{ display:none !important; }
 
-    /* CARTOタイル：やや鮮鋭化は控えめ（Terrain濃くするため） */
+    /* CARTOタイル：ベース */
     .leaflet-tile.carto-tiles{
       filter: contrast(1.08) saturate(1.08) brightness(1.00);
     }
-    /* Stamen Terrain（濃く／乗算で地形を強調） */
+    /* Stamen Terrain（地形強調） */
     .leaflet-tile.stamen-terrain{
-      opacity: 0.72;                /* ← 濃くしました（0.55→0.72） */
+      opacity: 0.72;
       mix-blend-mode: multiply;
       image-rendering: crisp-edges;
     }
@@ -74,8 +74,8 @@
   <!-- 左上：凡例 -->
   <div id="legend-top">
     <span style="color:#e60026;font-weight:bold;">●</span> 要交換<br>
-    <span style="color:#ff8c00;font-weight:bold;">●</span> 交換推奨<br>
-    <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見
+    <span style="color:#ffcc00;font-weight:bold;">●</span> 様子見（比重5）<br>
+    <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見（比重3〜4）
   </div>
 
   <!-- 右下：更新日時 + クレジット -->
@@ -104,33 +104,35 @@
       { maxZoom: 18, attribution: '', className: 'stamen-terrain' }
     ).addTo(MAP);
 
-    // マーカー用レイヤ
+    // ピンレイヤ
     const markersLayer = L.layerGroup().addTo(MAP);
 
-    /* ====== ピン色・状態判定 ======
-       - 要交換：赤（目安交換台数>=3  または  比重>=10）※赤は1色で統一
-       - 交換推奨：橙（weight==5）
-       - 様子見：緑（weight 3〜4）
-       - 非表示：上記以外
+    /* ====== ステータス判定 ======
+       - 要交換：赤（台数>=3 または 比重>=10）
+       - 様子見（黄色）：比重=5
+       - 様子見（緑）：比重3〜4
+       - 非表示：それ以外
     ================================== */
     function statusOf(weight, count){
       const w = Number(weight)||0, c = Number(count)||0;
-      if (c >= 3 || w >= 10) return 'urgent';       // 要交換
-      if (w === 5)            return 'recommend';   // 交換推奨
-      if (w >= 3)             return 'watch';       // 様子見
-      return null;                                    // 非表示
-    }
-    function colorByStatus(status){
-      if (status === 'urgent')    return '#e60026'; // 共通の赤
-      if (status === 'recommend') return '#ff8c00';
-      if (status === 'watch')     return '#b7e1a1';
+      if (c >= 3 || w >= 10) return 'urgent';
+      if (w === 5)            return 'watch-yellow';
+      if (w >= 3)             return 'watch-green';
       return null;
     }
+
+    function colorByStatus(status){
+      if (status === 'urgent')       return '#e60026'; // 赤
+      if (status === 'watch-yellow') return '#ffcc00'; // 黄色
+      if (status === 'watch-green')  return '#b7e1a1'; // 緑
+      return null;
+    }
+
     function radiusByCount(c){ return Math.max(6, Math.min(22, 6 + (Number(c)||0) * 2)); }
 
     /* ====== JSON取得 ====== */
     async function loadData(){
-      const res = await fetch('data.json?_=' + Date.now()); // キャッシュ回避
+      const res = await fetch('data.json?_=' + Date.now());
       if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
@@ -145,13 +147,15 @@
         const fill = colorByStatus(status);
         if (!status || !fill) return;
 
-        // 状態タグ
+        // タグ
         const tagHtml =
-          status === 'urgent'    ? `<span class="tag tag-urgent">要交換</span>` :
-          status === 'recommend' ? `<span class="tag tag-recommend">交換推奨</span>` :
-          `<span class="tag tag-watch">様子見</span>`;
+          status === 'urgent'
+            ? `<span class="tag tag-urgent">要交換</span>`
+            : status === 'watch-yellow'
+              ? `<span class="tag tag-watch-yellow">様子見</span>`
+              : `<span class="tag tag-watch-green">様子見</span>`;
 
-        // —— ポップアップ（簡素版）——
+        // ポップアップ内容
         const html = `
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <strong>${name}</strong> ${tagHtml}
@@ -173,12 +177,12 @@
 
       if (bounds.length) MAP.fitBounds(bounds, {padding:[20,20]});
 
-      // 右下：更新日時（共通の最新値を表示）
+      // 更新日時（右下）
       const latest = (data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0] || '-';
       document.getElementById('legend').innerHTML = `<strong>更新日時：${latest}</strong>`;
     }
 
-    // 初回 & 5分おき更新（JSONのみ）
+    // 初回描画 + 5分おき更新（JSONのみ）
     (async ()=>{ try{ render(await loadData()); }catch(e){ alert(e.message); } })();
     setInterval(async ()=>{ try{ render(await loadData()); }catch(e){} }, 300000);
   </script>
