@@ -13,15 +13,18 @@
   <style>
     html, body, #map { height:100%; margin:0; background:#f7f7f7; }
 
-    /* 左上：凡例（タイトル無し） */
+    /* 左上：凡例 */
     #legend-top{
       position:absolute; top:8px; left:8px;
-      background:rgba(255,255,255,.92); padding:6px 10px; border-radius:6px;
+      background:rgba(255,255,255,.92);
+      padding:6px 10px;
+      border-radius:6px;
       font:12px/1.6 "Segoe UI","Helvetica Neue",sans-serif;
-      box-shadow:0 1px 4px rgba(0,0,0,.25); z-index:1000; user-select:none;
+      box-shadow:0 1px 4px rgba(0,0,0,.25);
+      z-index:1000; user-select:none;
     }
 
-    /* 右下：HUD（更新日時＋クレジット：縦並び固定・押し込み） */
+    /* 右下：更新日時＋クレジット */
     #hud{
       position:absolute; right:4px; bottom:4px; z-index:1000;
       display:flex; flex-direction:column; align-items:flex-end; gap:4px;
@@ -36,33 +39,30 @@
     }
     #credit{
       font:10px/1 "Segoe UI","Helvetica Neue",sans-serif; color:#ddd;
-      white-space:nowrap; pointer-events:auto;
-      margin-right:2px;
+      white-space:nowrap; pointer-events:auto; margin-right:2px;
     }
     #credit a{ color:#ddd; text-decoration:none; }
 
-    /* バッジ（ピンの吹き出し内などで使用） */
+    /* タグ */
     .badge{ display:inline-block; min-width:1.6em; text-align:center; padding:1px 6px; border-radius:10px; background:#eee; font-size:11px; }
-    .tag{
-      display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:bold; line-height:1;
-      color:#fff; vertical-align:middle;
-    }
-    .tag-urgent{ background:#e60026; }      /* 要交換（共通の赤） */
-    .tag-watch-yellow{ background:#ff8c00; color:#333; }  /* 様子見（黄色） */
+    .tag{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:bold; line-height:1; color:#fff; vertical-align:middle; }
+    .tag-urgent{ background:#e60026; }      /* 要交換 */
+    .tag-watch-yellow{ background:#ff8c00; }/* 様子見（黄） */
     .tag-watch-green{ background:#6fa86f; } /* 様子見（緑） */
 
-    /* Leaflet制御ボタン・コピーライト非表示 */
-    .leaflet-interactive{ stroke:#fff !important; stroke-width:1.4 !important; }
+    /* Leaflet調整 */
+    .leaflet-interactive{ stroke:#fff !important; stroke-width:1.3 !important; }
     .leaflet-control-zoom{ display:none !important; }
     .leaflet-control-attribution{ display:none !important; }
 
-    /* CARTOタイル：ベース */
+    /* CARTOタイル：やや濃く鮮明に */
     .leaflet-tile.carto-tiles{
-      filter: contrast(1.08) saturate(1.08) brightness(1.00);
+      filter: contrast(1.15) saturate(1.12) brightness(0.97);
     }
-    /* Stamen Terrain（地形強調） */
+
+    /* Stamen Terrain（地形・川・山をクッキリ） */
     .leaflet-tile.stamen-terrain{
-      opacity: 0.72;
+      opacity: 0.65; /* 控えめに重ねる */
       mix-blend-mode: multiply;
       image-rendering: crisp-edges;
     }
@@ -74,11 +74,11 @@
   <!-- 左上：凡例 -->
   <div id="legend-top">
     <span style="color:#e60026;font-weight:bold;">●</span> 要交換<br>
-    <span style="color:#ffcc00;font-weight:bold;">●</span> 様子見<br>
-    <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見
+    <span style="color:#ff8c00;font-weight:bold;">●</span> 様子見（比重5）<br>
+    <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見（比重3〜4）
   </div>
 
-  <!-- 右下：更新日時 + クレジット -->
+  <!-- 右下：更新日時＋クレジット -->
   <div id="hud">
     <div id="legend">読み込み中…</div>
     <div id="credit">
@@ -89,30 +89,24 @@
   </div>
 
   <script>
-    /* ====== マップ（CARTO + Stamen Terrain） ====== */
+    /* ===== マップ設定（CARTO + Terrain） ===== */
     const MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 12);
 
-    // 下層：CARTO（ラベル込み）
+    // CARTO（明るめベース）
     L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
       { maxZoom: 19, subdomains: 'abcd', attribution: '', className: 'carto-tiles' }
     ).addTo(MAP);
 
-    // 上層：Stamen Terrain（濃いめに）
+    // Terrain（川・山・線路を強調）
     L.tileLayer(
       'https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg',
       { maxZoom: 18, attribution: '', className: 'stamen-terrain' }
     ).addTo(MAP);
 
-    // ピンレイヤ
     const markersLayer = L.layerGroup().addTo(MAP);
 
-    /* ====== ステータス判定 ======
-       - 要交換：赤（台数>=3 または 比重>=10）
-       - 様子見（黄色）：比重=5
-       - 様子見（緑）：比重3〜4
-       - 非表示：それ以外
-    ================================== */
+    /* ===== ステータス判定 ===== */
     function statusOf(weight, count){
       const w = Number(weight)||0, c = Number(count)||0;
       if (c >= 3 || w >= 10) return 'urgent';
@@ -122,22 +116,20 @@
     }
 
     function colorByStatus(status){
-      if (status === 'urgent')       return '#e60026'; // 赤
-      if (status === 'watch-yellow') return '#ffcc00'; // 黄色
-      if (status === 'watch-green')  return '#b7e1a1'; // 緑
+      if (status === 'urgent')       return '#e60026'; // 要交換
+      if (status === 'watch-yellow') return '#ff8c00'; // 様子見（黄）
+      if (status === 'watch-green')  return '#b7e1a1'; // 様子見（緑）
       return null;
     }
 
     function radiusByCount(c){ return Math.max(6, Math.min(22, 6 + (Number(c)||0) * 2)); }
 
-    /* ====== JSON取得 ====== */
     async function loadData(){
       const res = await fetch('data.json?_=' + Date.now());
       if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
 
-    /* ====== 描画 ====== */
     function render(data){
       markersLayer.clearLayers();
       const bounds = [];
@@ -147,7 +139,6 @@
         const fill = colorByStatus(status);
         if (!status || !fill) return;
 
-        // タグ
         const tagHtml =
           status === 'urgent'
             ? `<span class="tag tag-urgent">要交換</span>`
@@ -155,7 +146,6 @@
               ? `<span class="tag tag-watch-yellow">様子見</span>`
               : `<span class="tag tag-watch-green">様子見</span>`;
 
-        // ポップアップ内容
         const html = `
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <strong>${name}</strong> ${tagHtml}
@@ -177,12 +167,10 @@
 
       if (bounds.length) MAP.fitBounds(bounds, {padding:[20,20]});
 
-      // 更新日時（右下）
       const latest = (data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0] || '-';
       document.getElementById('legend').innerHTML = `<strong>更新日時：${latest}</strong>`;
     }
 
-    // 初回描画 + 5分おき更新（JSONのみ）
     (async ()=>{ try{ render(await loadData()); }catch(e){ alert(e.message); } })();
     setInterval(async ()=>{ try{ render(await loadData()); }catch(e){} }, 300000);
   </script>
