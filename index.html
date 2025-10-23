@@ -24,20 +24,19 @@
       z-index:1000; user-select:none;
     }
 
-    /* 右下：更新日時＋クレジット */
+    /* 右下：HUD（更新日時＋クレジット） */
     #hud{
       position:absolute; right:4px; bottom:4px; z-index:1000;
       display:flex; flex-direction:column; align-items:flex-end; gap:4px;
       pointer-events:none;
     }
     #legend{
-      position: relative;
       background:rgba(0,0,0,.78); color:#fff;
       padding:5px 10px; border-radius:6px;
       font:12px/1.5 "Segoe UI","Helvetica Neue",sans-serif;
       box-shadow:0 1px 3px rgba(0,0,0,.3);
       max-width:60vw;
-      display:flex; align-items:center; justify-content:space-between; gap:8px;
+      pointer-events:auto;
     }
     #credit{
       font:10px/1 "Segoe UI","Helvetica Neue",sans-serif; color:#ddd;
@@ -45,44 +44,47 @@
     }
     #credit a{ color:#ddd; text-decoration:none; }
 
-    /* 現在地ボタン（更新日時パネル右上） */
-    #locateBtn {
+    /* 現在地ボタン（更新日時ボックスの“上”） */
+    #locateFab{
+      position:absolute; right:8px; bottom:64px; z-index:1000;
       pointer-events:auto;
-      background:rgba(255,255,255,.85);
-      border:none; border-radius:4px;
-      padding:2px 6px;
-      font-size:14px;
-      cursor:pointer;
-      box-shadow:0 1px 3px rgba(0,0,0,0.4);
-      display:flex; align-items:center; justify-content:center;
     }
-    #locateBtn:hover { background:rgba(255,255,255,1); }
+    .fab-btn{
+      width:50px; height:50px; border-radius:50%;
+      border:none; cursor:pointer;
+      background:#fff;
+      box-shadow:0 4px 10px rgba(0,0,0,.25);
+      display:flex; align-items:center; justify-content:center;
+      transition: transform .08s ease-in-out, box-shadow .2s;
+      touch-action: manipulation;
+    }
+    .fab-btn:active{ transform:scale(0.95); }
+    .fab-btn:hover{ box-shadow:0 6px 14px rgba(0,0,0,.3); }
+    .fab-btn svg{ width:24px; height:24px; transition: fill .3s; }
 
-    /* タグ */
+    /* 状態別 */
+    .following svg{ fill:#2c7be5; }   /* 追従中（青） */
+    .idle svg{ fill:#777; }           /* 非追従（グレー） */
+
+    /* ポップアップ・タグ */
     .badge{ display:inline-block; min-width:1.6em; text-align:center; padding:1px 6px; border-radius:10px; background:#eee; font-size:11px; }
     .tag{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:bold; line-height:1; color:#fff; vertical-align:middle; }
     .tag-urgent{ background:#e60026; }
     .tag-watch-yellow{ background:#ff8c00; }
     .tag-watch-green{ background:#6fa86f; }
 
+    /* Leaflet関連 */
     .leaflet-interactive{ stroke:#fff !important; stroke-width:1.3 !important; }
     .leaflet-control-zoom{ display:none !important; }
     .leaflet-control-attribution{ display:none !important; }
-
-    .leaflet-tile.carto-tiles{
-      filter: contrast(1.15) saturate(1.12) brightness(0.97);
-    }
-    .leaflet-tile.stamen-terrain{
-      opacity: 0.65;
-      mix-blend-mode: multiply;
-      image-rendering: crisp-edges;
-    }
+    .leaflet-tile.carto-tiles{ filter:contrast(1.15) saturate(1.12) brightness(0.97); }
+    .leaflet-tile.stamen-terrain{ opacity:0.65; mix-blend-mode:multiply; image-rendering:crisp-edges; }
 
     /* 現在地マーカー */
     .me-dot {
-      width: 12px; height: 12px; border-radius: 50%;
-      background: #2c7be5; border: 2px solid #fff;
-      box-shadow: 0 0 0 2px rgba(44,123,229,.35);
+      width:12px; height:12px; border-radius:50%;
+      background:#2c7be5; border:2px solid #fff;
+      box-shadow:0 0 0 2px rgba(44,123,229,.35);
     }
   </style>
 </head>
@@ -96,12 +98,16 @@
     <span style="color:#b7e1a1;font-weight:bold;">●</span> 様子見
   </div>
 
+  <!-- 現在地FAB -->
+  <div id="locateFab">
+    <button id="locateBtn" class="fab-btn idle" title="現在地追従">
+      <svg viewBox="0 0 24 24"><path d="M12 2l6.5 18.5-6.5-3-6.5 3L12 2z"></path></svg>
+    </button>
+  </div>
+
   <!-- 右下：更新日時＋クレジット -->
   <div id="hud">
-    <div id="legend">
-      <div><strong>更新日時：</strong><span id="updateTime">読み込み中…</span></div>
-      <button id="locateBtn" title="現在地に移動">📍</button>
-    </div>
+    <div id="legend"><strong>更新日時：</strong><span id="updateTime">読み込み中…</span></div>
     <div id="credit">
       © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> /
       © <a href="https://stamen.com" target="_blank" rel="noopener">Stamen</a> /
@@ -112,61 +118,45 @@
   <script>
     /* ===== マップ設定（CARTO + Terrain） ===== */
     const MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 12);
-    L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-      { maxZoom: 19, subdomains: 'abcd', className: 'carto-tiles' }
-    ).addTo(MAP);
-    L.tileLayer(
-      'https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg',
-      { maxZoom: 18, className: 'stamen-terrain' }
-    ).addTo(MAP);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      { maxZoom:19, subdomains:'abcd', className:'carto-tiles' }).addTo(MAP);
+    L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg',
+      { maxZoom:18, className:'stamen-terrain' }).addTo(MAP);
 
     const markersLayer = L.layerGroup().addTo(MAP);
 
     /* ===== ステータス判定 ===== */
     function statusOf(weight, count){
-      const w = Number(weight)||0, c = Number(count)||0;
-      if (c >= 3 || w >= 10) return 'urgent';
-      if (w === 5)            return 'watch-yellow';
-      if (w >= 3)             return 'watch-green';
+      const w=Number(weight)||0, c=Number(count)||0;
+      if(c>=3||w>=10) return'urgent';
+      if(w===5) return'watch-yellow';
+      if(w>=3) return'watch-green';
       return null;
     }
-    function colorByStatus(status){
-      if (status === 'urgent')       return '#e60026';
-      if (status === 'watch-yellow') return '#ff8c00';
-      if (status === 'watch-green')  return '#b7e1a1';
-      return null;
-    }
-    function radiusByCount(c){ return Math.max(6, Math.min(22, 6 + (Number(c)||0) * 2)); }
+    function colorByStatus(s){ return s==='urgent'?'#e60026':s==='watch-yellow'?'#ff8c00':s==='watch-green'?'#b7e1a1':null; }
+    function radiusByCount(c){ return Math.max(6, Math.min(22, 6 + (Number(c)||0)*2)); }
 
+    /* ===== JSONロード ===== */
     async function loadData(){
-      const res = await fetch('data.json?_=' + Date.now());
+      const res=await fetch('data.json?_='+Date.now());
       if(!res.ok) throw new Error('data.jsonを取得できません');
       return res.json();
     }
 
-    let didInitialFit = false;
-    let userMoved = false;
-    MAP.on('movestart', () => { userMoved = true; });
-    MAP.on('zoomstart', () => { userMoved = true; });
+    let didInitialFit=false, userMoved=false;
+    // ✅ ズームでは解除しない（移動のみで追従解除）
+    MAP.on('movestart', ()=>{ userMoved=true; following=false; updateFollowIcon(); });
 
     function render(data){
       markersLayer.clearLayers();
-      const bounds = [];
-
-      (data.items || []).forEach(({lat,lng,name,updated,weight,count})=>{
-        const status = statusOf(weight, count);
-        const fill = colorByStatus(status);
-        if (!status || !fill) return;
-
-        const tagHtml =
-          status === 'urgent'
-            ? `<span class="tag tag-urgent">要交換</span>`
-            : status === 'watch-yellow'
-              ? `<span class="tag tag-watch-yellow">様子見</span>`
-              : `<span class="tag tag-watch-green">様子見</span>`;
-
-        const html = `
+      const bounds=[];
+      (data.items||[]).forEach(({lat,lng,name,updated,weight,count})=>{
+        const s=statusOf(weight,count), fill=colorByStatus(s);
+        if(!s||!fill) return;
+        const tagHtml=s==='urgent'?'<span class="tag tag-urgent">要交換</span>'
+                    :s==='watch-yellow'?'<span class="tag tag-watch-yellow">様子見</span>'
+                    :'<span class="tag tag-watch-green">様子見</span>';
+        const html=`
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <strong>${name}</strong> ${tagHtml}
           </div>
@@ -175,54 +165,53 @@
           <div style="margin-top:10px">
             <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving" target="_blank" rel="noopener">車経路（GoogleMAP）</a>
           </div>`;
-
-        L.circleMarker([lat,lng], {
-          radius: radiusByCount(count),
-          color:'#fff', weight:1.4,
-          fillColor: fill, fillOpacity:.92
-        }).bindPopup(html).addTo(markersLayer);
-
+        L.circleMarker([lat,lng],{radius:radiusByCount(count),color:'#fff',weight:1.4,fillColor:fill,fillOpacity:.92})
+          .bindPopup(html).addTo(markersLayer);
         bounds.push([lat,lng]);
       });
-
-      if (bounds.length && !didInitialFit && !userMoved) {
-        MAP.fitBounds(bounds, {padding:[20,20]});
-        didInitialFit = true;
-      }
-
-      const latest = (data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0] || '-';
-      document.getElementById('updateTime').textContent = latest;
+      if(bounds.length&&!didInitialFit&&!userMoved){ MAP.fitBounds(bounds,{padding:[20,20]}); didInitialFit=true; }
+      const latest=(data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0]||'-';
+      document.getElementById('updateTime').textContent=latest;
     }
 
-    (async ()=>{ try{ render(await loadData()); }catch(e){ alert(e.message); } })();
-    setInterval(async ()=>{ try{ render(await loadData()); }catch(e){} }, 300000);
+    (async()=>{try{render(await loadData());}catch(e){alert(e.message);}})();
+    setInterval(async()=>{try{render(await loadData());}catch(e){}},300000);
 
-    /* ===== 現在地表示 + フォーカスボタン ===== */
-    let meMarker = null, meCircle = null;
-    const locateBtn = document.getElementById('locateBtn');
+    /* ===== 現在地追従 ===== */
+    let meMarker=null, meCircle=null, watchId=null;
+    let following=false;
+    const btn=document.getElementById('locateBtn');
+    function updateFollowIcon(){
+      btn.classList.toggle('following',following);
+      btn.classList.toggle('idle',!following);
+    }
 
-    locateBtn.addEventListener('click', ()=>{
-      if (!('geolocation' in navigator)) {
-        alert('この端末では位置情報が利用できません。');
-        return;
+    function showOrUpdateMe(lat,lng,acc){
+      if(!meMarker){
+        const div=L.divIcon({className:'',html:'<div class="me-dot"></div>',iconSize:[16,16],iconAnchor:[8,8]});
+        meMarker=L.marker([lat,lng],{icon:div,interactive:false}).addTo(MAP);
+        meCircle=L.circle([lat,lng],{radius:acc||30,color:'#2c7be5',weight:1,fillColor:'#2c7be5',fillOpacity:0.12,interactive:false}).addTo(MAP);
+      }else{
+        meMarker.setLatLng([lat,lng]);
+        meCircle.setLatLng([lat,lng]).setRadius(acc||30);
       }
-      navigator.geolocation.getCurrentPosition(
-        (pos)=>{
-          const { latitude, longitude, accuracy } = pos.coords;
-          // 既存マーカーがあれば更新
-          if (!meMarker) {
-            const div = L.divIcon({ className: '', html: '<div class="me-dot"></div>', iconSize:[16,16], iconAnchor:[8,8] });
-            meMarker = L.marker([latitude, longitude], { icon: div, interactive:false }).addTo(MAP);
-            meCircle = L.circle([latitude, longitude], { radius: accuracy||30, color:'#2c7be5', weight:1, fillColor:'#2c7be5', fillOpacity:0.12, interactive:false }).addTo(MAP);
-          } else {
-            meMarker.setLatLng([latitude, longitude]);
-            meCircle.setLatLng([latitude, longitude]).setRadius(accuracy||30);
-          }
-          MAP.panTo([latitude, longitude]);
-        },
-        (err)=>{ alert('現在地を取得できませんでした：' + err.message); },
-        { enableHighAccuracy:true, timeout:10000 }
-      );
+      if(following) MAP.panTo([lat,lng]);
+    }
+
+    btn.addEventListener('click',()=>{
+      if(!('geolocation' in navigator)){ alert('位置情報が利用できません'); return; }
+
+      if(following){
+        following=false; updateFollowIcon();
+        if(watchId){ navigator.geolocation.clearWatch(watchId); watchId=null; }
+      }else{
+        following=true; updateFollowIcon();
+        watchId=navigator.geolocation.watchPosition(
+          pos=>{ const {latitude,longitude,accuracy}=pos.coords; showOrUpdateMe(latitude,longitude,accuracy); },
+          err=>{ alert('現在地取得失敗: '+err.message); },
+          { enableHighAccuracy:true, maximumAge:5000 }
+        );
+      }
     });
   </script>
 </body>
