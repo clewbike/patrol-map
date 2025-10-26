@@ -7,7 +7,7 @@ const markerByKey = new Map();
 
 /** Map生成 */
 export function initMap() {
-  MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 12);
+  MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 13);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
     { maxZoom:19, subdomains:'abcd' }).addTo(MAP);
   markersLayer = L.layerGroup().addTo(MAP);
