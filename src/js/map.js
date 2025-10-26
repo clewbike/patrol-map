@@ -16,8 +16,8 @@ const jawgSunnyUrl =
   'https://tile.jawg.io/jawg-sunny/{z}/{x}/{y}{r}.png?access-token={accessToken}';
 
 const jawgOpts = {
-  minZoom: 11,
-  maxZoom: 18,
+  minZoom: 12,
+  maxZoom: 17,
   // ← ここは上で定義したトークン変数を使う
   accessToken: JAWG_ACCESS_TOKEN,
   attribution:
