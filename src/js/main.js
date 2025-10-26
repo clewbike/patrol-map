@@ -40,13 +40,8 @@ async function loadInitialData() {
     lastDataJsonText = JSON.stringify(json);
     classified = classify(json.items);
     setTableData(classified);
+    renderTable();
     drawMarkers(classified, viewFilter());
-    updateTime.textContent = latestUpdate(json.items);
-    lastDataJsonText = JSON.stringify(json);
-    classified = classify(json.items);      // ← ここで setCounts(total) を内部で呼んでいる前提
-    setTableData(classified);
-    renderTable();                          // ← 一覧のDOMを生成（setRowClickHandler方式なら引数不要）
-    drawMarkers(classified, viewFilter());  // ← 地図マーカー描画
     updateTime.textContent = latestUpdate(json.items);
 
     // 念のための二重保険（classify内でsetCounts済みなら不要。気になるなら残す）
