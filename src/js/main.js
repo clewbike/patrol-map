@@ -127,15 +127,23 @@ function showOrUpdateMe(lat,lng,acc){
   }
 }
 
-/* 起動時に一度だけ現在地を表示（パン＋ズーム付き） */
-function showMyLocationOnce({ pan=true, targetZoom=15 } = {}){
+/* 起動時に一度だけ現在地を表示（デフォルト＝パンしない） */
+function showMyLocationOnce({ pan=false, targetZoom=15, quickPanMs=800 } = {}){
   if(!('geolocation' in navigator)) return;
+
+  let didQuickPan = false;
+  const t = setTimeout(() => { didQuickPan = true; }, quickPanMs); // “すぐ取れたときだけ素早くパン”の判定
+
   navigator.geolocation.getCurrentPosition(
     pos=>{
+      clearTimeout(t);
       const { latitude, longitude, accuracy } = pos.coords;
       showOrUpdateMe(latitude, longitude, accuracy);
+
+      // すぐ取れた＆pan指定のときだけ軽くパン（or ズーム）
+      if (pan && !didQuickPan) return; // 遅れて取れたならパンしない
       const MAP = getMap();
-      if (pan && MAP){
+      if (MAP && pan){
         if (MAP.getZoom() < targetZoom) MAP.setView([latitude, longitude], targetZoom, { animate:true });
         else MAP.panTo([latitude, longitude], { animate:true });
       }
