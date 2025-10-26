@@ -157,8 +157,8 @@ function showOrUpdateMe(lat,lng,acc){
 function isSecureOrigin(){
   return location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 }
-/* 起動時：一度だけ現在地をセンタリング（ズームは+1段だけ任意） */
-async function showMyLocationOnce({ center=true, gentleZoom=true, zoomStep=1 } = {}){
+/* 起動時：一度だけ現在地をセンタリング */
+async function showMyLocationOnce({ center=true, gentleZoom=false } = {}){
   try{
     if(!('geolocation' in navigator)){
       uiGeoNotice('端末の位置情報に非対応です'); return;
@@ -243,7 +243,7 @@ async function init(){
     bindMapStopFollow();
 
     // 3) 起動時に現在地を一度だけセンタリング（ズームは+1段だけ任意）
-    showMyLocationOnce({ center: true, gentleZoom: true, zoomStep: 1 });
+    showMyLocationOnce({ center:true, gentleZoom:false });
 
     // 一覧の行クリック → 地図パン＆ポップアップ
     setRowClickHandler((lat,lng,name)=> panToAndOpen(lat,lng,name));
