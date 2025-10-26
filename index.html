@@ -11,19 +11,20 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
 
   <style>
-    :root { --ui-font: "Segoe UI","Helvetica Neue",sans-serif; }
+    :root{
+      --ui-font: "Segoe UI","Helvetica Neue",sans-serif;
+      --drawer-head-h: 44px;  /* タイトルバーの大きさ（sticky用） */
+      --tools-h:       44px;  /* 検索ボックス行の大きさ（sticky用） */
+    }
     html, body { height:100%; }
-    html.no-hscroll, body.no-hscroll { overflow-x: hidden; overscroll-behavior-x: none; }
-    body { margin:0; background:#f7f7f7; font-family: var(--ui-font); -webkit-text-size-adjust:100%; }
-
+    html.no-hscroll, body.no-hscroll { overflow-x:hidden; overscroll-behavior-x:none; }
+    body { margin:0; background:#f7f7f7; font-family:var(--ui-font); -webkit-text-size-adjust:100%; }
     #map { height:100%; }
 
-    /* マップ以外はズームさせない（※iOSのピンチは完全には止めにくいが抑制） */
-    #legend-top, #hud, #menuBtn, #drawer, #refreshBtn, #locateFab, #tipBackdrop, #tipBox {
-      touch-action: pan-y;
-    }
+    /* マップ以外はズーム抑制（iOSで完全停止は難しいが抑制） */
+    #legend-top, #hud, #menuBtn, #drawer, #refreshBtn, #locateFab, #tipBackdrop, #tipBox { touch-action: pan-y; }
 
-    /* ── 左上：凡例（コンパクト） ───────────────── */
+    /* ── 左上：凡例 ── */
     #legend-top{
       position:absolute; top:8px; left:8px; z-index:1000; user-select:none;
       background:rgba(255,255,255,.96);
@@ -33,51 +34,45 @@
       width:145px;
     }
     .legend-row{
-      display:grid;
-      grid-template-columns: auto 24px 18px; /* 名称 / 件数 / チェック */
-      align-items:center; column-gap:4px; margin:1px 0;
+      display:grid; grid-template-columns:auto 24px 18px; align-items:center;
+      column-gap:4px; margin:1px 0;
     }
     .legend-left{ display:flex; align-items:center; gap:4px; min-width:0; }
     .legend-dot{ font-weight:700; }
-    .legend-count{ text-align:left; font-weight:700; font-variant-numeric: tabular-nums; letter-spacing:.01em; }
+    .legend-count{ text-align:left; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:.01em; }
     .legend-ctrl{ width:18px; display:flex; justify-content:flex-start; }
     input[type=checkbox]{ transform:scale(1.0); cursor:pointer; }
 
     .legend-note-wrap{ display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:4px; }
     .legend-note{ font-size:10.8px; color:#b00020; line-height:1.4; white-space:pre-line; }
 
-    /* ── Tips ─────────────────────────────────────── */
-    .tip-btn{ width:16px; height:16px; border-radius:50%; border:0; cursor:pointer; background:#eef3ff; color:#2c7be5; font:700 11px/16px system-ui; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
+    /* ── Tips ── */
+    .tip-btn{ width:16px; height:16px; border-radius:50%; border:0; cursor:pointer; background:#eef3ff; color:#2c7be5; font:700 11px/16px system-ui; display:inline-flex; align-items:center; justify-content:center; }
     .tip-btn:active{ transform:scale(.96); }
     #tipBackdrop{ position:fixed; inset:0; background:rgba(0,0,0,.25); display:none; z-index:1100; }
     #tipBox{
       position:absolute; left:10px; right:10px; bottom:10px; z-index:1110;
-      background:#1f1f1fe6; color:#fff; padding:10px 12px;
-      border-radius:10px; font:12.5px/1.6 var(--ui-font);
-      box-shadow:0 4px 14px rgba(0,0,0,.28); display:none; max-width:520px;
+      background:#1f1f1fe6; color:#fff; padding:10px 12px; border-radius:10px;
+      font:12.5px/1.6 var(--ui-font); box-shadow:0 4px 14px rgba(0,0,0,.28); display:none; max-width:520px;
     }
     #tipBox h4{ margin:6px 0 6px; font-size:12.5px; display:flex; align-items:center; gap:8px; }
     #tipBox ul{ margin:0 0 8px 1.2em; padding:0; }
     #tipBox li{ margin:2px 0; }
     #tipBox .close{ float:right; margin-left:8px; cursor:pointer; color:#ddd; font-weight:700; }
 
-    /* ── 右下：更新時刻＋クレジット ─────────────── */
+    /* ── 右下：更新時刻＋クレジット ── */
     #hud{
       position:absolute; right:4px; bottom:4px; z-index:1000;
-      display:flex; flex-direction:column; align-items:flex-end; gap:4px;
-      pointer-events:none;
+      display:flex; flex-direction:column; align-items:flex-end; gap:4px; pointer-events:none;
     }
     #legend{
-      background:rgba(0,0,0,.78); color:#fff;
-      padding:5px 10px; border-radius:6px;
-      font:12px/1.5 var(--ui-font);
-      box-shadow:0 1px 3px rgba(0,0,0,.3);
-      pointer-events:auto;
+      background:rgba(0,0,0,.78); color:#fff; padding:5px 10px; border-radius:6px;
+      font:12px/1.5 var(--ui-font); box-shadow:0 1px 3px rgba(0,0,0,.3); pointer-events:auto;
     }
     #credit{ font:10px/1 var(--ui-font); color:#ddd; white-space:nowrap; pointer-events:auto; margin-right:2px; }
     #credit a{ color:#ddd; text-decoration:none; }
 
-    /* ── 未読あり更新ボタン ───────────────────── */
+    /* ── 未読あり更新ボタン ── */
     #refreshBtn{
       position:absolute; right:8px; bottom:120px; z-index:1000;
       background:#fff; border:1px solid #ccc; border-radius:999px;
@@ -86,72 +81,83 @@
     }
     #refreshBadge{ display:none; margin-left:8px; width:8px; height:8px; border-radius:50%; background:#e60026; vertical-align:middle; }
 
-    /* ── 現在地FAB ─────────────────────────── */
+    /* ── 現在地FAB ── */
     #locateFab{ position:absolute; right:8px; bottom:64px; z-index:1000; pointer-events:auto; }
-    .fab-btn{
-      width:50px; height:50px; border-radius:50%; border:none; cursor:pointer; background:#fff;
-      box-shadow:0 4px 10px rgba(0,0,0,.25);
-      display:flex; align-items:center; justify-content:center;
-      transition: transform .08s ease-in-out, box-shadow .2s; touch-action: manipulation;
-    }
+    .fab-btn{ width:50px; height:50px; border-radius:50%; border:none; cursor:pointer; background:#fff;
+      box-shadow:0 4px 10px rgba(0,0,0,.25); display:flex; align-items:center; justify-content:center;
+      transition: transform .08s ease-in-out, box-shadow .2s; touch-action: manipulation; }
     .fab-btn:active{ transform:scale(0.95); }
     .fab-btn svg{ width:24px; height:24px; transition: fill .2s; }
     .following svg{ fill:#2c7be5; } .idle svg{ fill:#777; }
 
-    /* タグ／バッジ（ピンのバッジと同じ） */
+    /* タグ（ピン内バッジ） */
     .tag{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:bold; color:#fff; }
     .tag-urgent{ background:#e60026; }
     .tag-watch-yellow{ background:#ff8c00; }
     .tag-watch-green{ background:#6fa86f; }
 
-    /* Leaflet 既定コントロール非表示・現在地マーカー */
+    /* Leafletデフォルト非表示・現在地マーカー */
     .leaflet-control-zoom, .leaflet-control-attribution{ display:none !important; }
     .leaflet-div-icon{ background:transparent !important; border:none !important; }
     .me-dot{ width:12px; height:12px; border-radius:50%; background:#2c7be5; border:2px solid #fff; box-shadow:0 0 6px 2px rgba(44,123,229,0.5); pointer-events:none; }
 
-    /* ── 右上：シンプルなメニューボタン（≡のみ） ───── */
+    /* ── 右上：スタイリッシュなハンバーガー（モノクロSVG） ── */
     #menuBtn{
       position:absolute; top:8px; right:8px; z-index:1000;
       width:40px; height:40px; border-radius:10px;
       display:flex; align-items:center; justify-content:center;
       background:#fff; border:1px solid #ddd; cursor:pointer;
       box-shadow:0 2px 6px rgba(0,0,0,.15);
-      font:18px/1 var(--ui-font);
     }
+    #menuBtn svg{ width:22px; height:22px; }
+    #menuBtn path{ fill:#444; }
+    #menuBtn:hover path{ fill:#111; }
 
-    /* ── 右側ドロワー（一覧） ───────────────── */
+    /* ── 右側ドロワー（一覧） ── */
     #drawer{
-      position:absolute; top:0; right:0; bottom:0; width: min(580px, 94vw); /* ←少し広げた */
+      position:absolute; top:0; right:0; bottom:0; width:min(580px,94vw);
       background:#fff; z-index:1200; box-shadow:-6px 0 16px rgba(0,0,0,.25);
-      transform: translateX(100%); transition: transform .25s ease;
-      display:flex; flex-direction:column; overflow-x:hidden;
-      font-family: var(--ui-font);
-      touch-action: none; /* 一覧内でのピンチズームを抑制 */
+      transform:translateX(100%); transition:transform .25s ease;
+      display:flex; flex-direction:column; overflow-x:hidden; font-family:var(--ui-font);
+      touch-action:none; /* ピンチズーム抑制 */
     }
-    #drawer.open{ transform: translateX(0); }
-    .drawer-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; border-bottom:1px solid #eee; }
+    #drawer.open{ transform:translateX(0); }
+    .drawer-head{
+      position:sticky; top:0; z-index:3;
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+      height:var(--drawer-head-h);
+      padding:10px 12px; border-bottom:1px solid #eee; background:#fff;
+    }
     .drawer-head b{ font-size:14px; }
     .drawer-close{ border:0; background:transparent; font-size:18px; cursor:pointer; padding:6px; }
 
-    .drawer-body{ padding:10px 12px; overflow:auto; }
-    .tbl-tools{ display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+    .drawer-body{ padding:0 12px 10px; overflow:auto; }
+    .links-block{ padding:8px 0 0; font-size:12px; }
+    .links-block a{ color:#2c7be5; text-decoration:none; }
+    .links-block a:hover{ text-decoration:underline; }
+
+    /* 検索バーをstickyに（タイトル下に固定） */
+    .tbl-tools{
+      position:sticky; top:var(--drawer-head-h); z-index:2;
+      display:flex; gap:8px; align-items:center; padding:8px 0; margin:0;
+      background:#fff; border-bottom:1px solid #eee;
+    }
     .tbl-tools input[type="text"]{
-      border:1px solid #ccc; border-radius:6px; padding:6px 8px; font-size:12px; width:240px;
-      font-family: var(--ui-font);
+      border:1px solid #ccc; border-radius:6px; padding:6px 8px; font-size:12px; width:260px;
+      font-family:var(--ui-font);
     }
 
-    .tbl{ width:100%; border-collapse:separate; border-spacing:0; font-size:12px; table-layout:fixed; font-family: var(--ui-font); }
+    /* テーブル */
+    .tbl{ width:100%; border-collapse:separate; border-spacing:0; font-size:12px; table-layout:fixed; font-family:var(--ui-font); }
     .tbl th, .tbl td{ padding:6px 8px; border-bottom:1px solid #eee; }
     .tbl th{
-      position:sticky; top:0; background:#fafafa; z-index:1; cursor:pointer; user-select:none;
-      border-bottom:1px solid #e5e5e5;
+      position:sticky; top:calc(var(--drawer-head-h) + var(--tools-h)); z-index:1;
+      background:#fafafa; cursor:pointer; user-select:none; border-bottom:1px solid #e5e5e5;
     }
-    .tbl .col-name  { width: 50%; }
-    .tbl .col-weight{ width: 22%; }
-    .tbl .col-count { width: 28%; }
-    .tbl th .sort{
-      font-size:11px; opacity:.7; margin-left:4px; vertical-align:middle;
-    }
+    .tbl .col-name{  width:50%; }
+    .tbl .col-weight{width:22%; }
+    .tbl .col-count{ width:28%; }
+    .tbl th .sort{ font-size:11px; opacity:.7; margin-left:4px; vertical-align:middle; }
     .nowrap{ white-space:nowrap; }
   </style>
 </head>
@@ -182,8 +188,13 @@
     </div>
   </div>
 
-  <!-- 右上：シンプルメニュー（≡） -->
-  <button id="menuBtn" aria-label="一覧" title="一覧">≡</button>
+  <!-- 右上：スタイリッシュなハンバーガー -->
+  <button id="menuBtn" aria-label="一覧" title="一覧">
+    <!-- 三本線・角丸のモノクロSVG -->
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 6a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H5a1 1 0 0 1-1-1zm0 6a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H5a1 1 0 0 1-1-1zm1 5a1 1 0 0 0 0 2h14a1 1 0 1 0 0-2H5z"/>
+    </svg>
+  </button>
 
   <!-- 右側：一覧ドロワー -->
   <div id="drawer" aria-hidden="true">
@@ -192,9 +203,16 @@
       <button class="drawer-close" id="drawerClose" title="閉じる">×</button>
     </div>
     <div class="drawer-body">
+      <!-- フォームリンク（検索ボックスの上／スクロールで流れてOK） -->
+      <div class="links-block">
+        <div>▼ <a href="https://forms.gle/76DsMzvctM4ajJt86" target="_blank" rel="noopener">ポート巡回報告フォーム</a></div>
+        <div>▼ <a href="https://forms.gle/WTEwgx3QVEkprt176" target="_blank" rel="noopener">不具合・修理対応報告フォーム</a></div>
+      </div>
+
       <div class="tbl-tools">
         <input type="text" id="qGlobal" placeholder="🔎 キーワード検索（ポート名/比重/台数）">
       </div>
+
       <table class="tbl" id="portsTable">
         <thead>
           <tr>
@@ -241,9 +259,7 @@
 
     /* プログラム操作抑制フラグ */
     let suppressUserOff=false;
-    function withProgrammatic(fn, ms=600){
-      suppressUserOff=true; try{ fn(); } finally{ setTimeout(()=>{ suppressUserOff=false; }, ms); }
-    }
+    function withProgrammatic(fn, ms=600){ suppressUserOff=true; try{ fn(); } finally{ setTimeout(()=>{ suppressUserOff=false; }, ms); } }
 
     /* 凡例UI */
     const chkYellow=document.getElementById('chk-yellow');
@@ -311,24 +327,9 @@
 
         const html=`
           <div><strong>${name}</strong> ${tagHtml}</div>
-
           <div style="margin-top:12px; line-height:1.7;">
             <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving"
                target="_blank" rel="noopener">車経路（GoogleMAP）</a>
-          </div>
-
-          <div style="margin-top:12px; line-height:1.7;">
-            <div>▼ポート巡回報告フォーム</div>
-            <div><a href="https://forms.gle/76DsMzvctM4ajJt86" target="_blank" rel="noopener">
-              https://forms.gle/76DsMzvctM4ajJt86
-            </a></div>
-          </div>
-
-          <div style="margin-top:12px; line-height:1.7;">
-            <div>▼不具合・修理対応報告フォーム</div>
-            <div><a href="https://forms.gle/WTEwgx3QVEkprt176" target="_blank" rel="noopener">
-              https://forms.gle/WTEwgx3QVEkprt176
-            </a></div>
           </div>`;
 
         L.circleMarker([lat,lng],{
@@ -432,7 +433,7 @@
 
     if('geolocation' in navigator){
       navigator.geolocation.getCurrentPosition(
-        pos=>{ const {latitude,longitude,accuracy}=p.coords; showOrUpdateMe(latitude,longitude,accuracy); },
+        p=>{ const {latitude,longitude,accuracy}=p.coords; showOrUpdateMe(latitude,longitude,accuracy); },
         ()=>{}, { enableHighAccuracy:true, timeout:10000 }
       );
     }
@@ -443,14 +444,12 @@
     const tipAll=document.getElementById('tipAll');
     const tipHtml=`
       <span class="close" id="tipClose">×</span>
-
       <h4><span class="tag tag-urgent">交換必須</span></h4>
       <ul>
         <li>最優先の交換対象ポート！中心地の駅周辺は当日交換必須</li>
         <li>ＡＴ異常や長期電池切れ車両（ポート外含む）を厳選表示</li>
         <li>表示定義「交換比重 6以上」または「交換台数 3台以上」</li>
       </ul>
-
       <h4><span class="tag tag-watch-yellow">交換可能</span></h4>
       <ul>
         <li>交換可能ポートは基本的に交換必須「40件未満」で巡回</li>
@@ -458,7 +457,6 @@
         <li>交換必須「40件以上」なら起動時に☑チェックなし</li>
         <li>表示定義「交換比重 5」または「交換台数 2台以上」</li>
       </ul>
-
       <h4><span class="tag tag-watch-green">経過観測</span></h4>
       <ul>
         <li>経過観測は巡回不要、起動時に標準で☑チェックなし</li>
@@ -493,7 +491,6 @@
         buildTable();
       });
     });
-
     qGlobal.addEventListener('input', debounce(buildTable, 150));
 
     function getRowsFromData(){
@@ -548,24 +545,9 @@
 
           const html=`
             <div><strong>${escapeHtml(r.name)}</strong> ${tagHtml}</div>
-
             <div style="margin-top:12px; line-height:1.7;">
               <a href="https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}&travelmode=driving"
                  target="_blank" rel="noopener">車経路（GoogleMAP）</a>
-            </div>
-
-            <div style="margin-top:12px; line-height:1.7;">
-              <div>▼ポート巡回報告フォーム</div>
-              <div><a href="https://forms.gle/76DsMzvctM4ajJt86" target="_blank" rel="noopener">
-                https://forms.gle/76DsMzvctM4ajJt86
-              </a></div>
-            </div>
-
-            <div style="margin-top:12px; line-height:1.7;">
-              <div>▼不具合・修理対応報告フォーム</div>
-              <div><a href="https://forms.gle/WTEwgx3QVEkprt176" target="_blank" rel="noopener">
-                https://forms.gle/WTEwgx3QVEkprt176
-              </a></div>
             </div>`;
 
           withProgrammatic(()=>{
@@ -583,7 +565,6 @@
 
     function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
     function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
-
   </script>
 </body>
 </html>
