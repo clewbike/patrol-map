@@ -148,8 +148,8 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
   top:calc(var(--links-h) + var(--tools-h) - 1px);
   z-index:3; background:#fafafa; border-bottom:1px solid #e5e5e5; cursor:pointer; user-select:none;
 }
-.tbl .col-name{width:43%;}
-.tbl .col-weight{width:22%;}
+.tbl .col-name{width:42%;}
+.tbl .col-weight{width:23%;}
 .tbl .col-count{width:35%;}
 .tbl th .sort{font-size:11px; opacity:.7; margin-left:4px; vertical-align:middle;}
 #portsTbody tr{cursor:pointer;}
