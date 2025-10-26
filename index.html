@@ -147,9 +147,15 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
   height:var(--tools-h); padding:0; margin:0; background:#fff;
   border-bottom:1px solid #e5e5e5;
 }
-.tbl-tools input[type="text"]{
-  border:1px solid #ccc; border-radius:6px; padding:6px 8px; font-size:12px; width:260px;
-  font-family:var(--ui-font);
+/* iOS Safari のズーム防止対策 */
+.tbl-tools input[type="text"] {
+  font-size: 16px;          /* ← ここを12px→16pxに変更 */
+  line-height: 1.2;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 7px 10px;        /* 高さ調整 */
+  width: 260px;
+  font-family: var(--ui-font);
 }
 
 /* ▼ テーブル（ヘッダー固定・隙間ゼロ）
