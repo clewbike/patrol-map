@@ -249,19 +249,22 @@ function bindMapStopFollow(){
 ───────────────────────────────────────────────*/
 async function init(){
   try {
-    // 地図初期化
+    // 1) 地図初期化（最初に必ず）
     initMap();
+
+    // 2) マップ操作で追従解除のバインド（MAPができてから）
     bindMapStopFollow();
 
-    // 起動時に現在地を一度表示
-    showMyLocationOnce({ center:true, gentleZoom:true, zoomStep=1 });
+    // 3) 起動時に現在地を一度だけセンタリング（ズームは+1段だけ任意）
+    showMyLocationOnce({ center: true, gentleZoom: true, zoomStep: 1 });
 
-    // テーブルの行選択のパン正常化のため初期化
-    setRowClickHandler((lat, lng, name) => panToAndOpen(lat, lng, name));
+    // --- 以降は既存の処理 ---
+    // テーブルの行クリック → 地図パン＆ポップアップ
+    setRowClickHandler((lat,lng,name)=> panToAndOpen(lat,lng,name));
 
-    // チェックイベント
-    chkYellow.addEventListener('change', ()=>{ userTouchedYellow=true; redrawAll(); });
-    chkGreen .addEventListener('change', ()=>{ userTouchedGreen =true; redrawAll(); });
+    // フィルタチェック変更で再描画
+    chkYellow.addEventListener('change', ()=>{ userTouchedYellow = true; redrawAll(); });
+    chkGreen .addEventListener('change', ()=>{ userTouchedGreen  = true; redrawAll(); });
 
     // ドロワー
     const drawer = document.getElementById('drawer');
@@ -309,11 +312,11 @@ async function init(){
     document.addEventListener('gesturestart', e=>{ if(!e.target.closest('#map')) e.preventDefault(); }, {passive:false});
     document.addEventListener('wheel', e=>{ if(e.ctrlKey && !e.target.closest('#map')) e.preventDefault(); }, {passive:false});
 
-    // 一覧関連
+    // 一覧のソート・検索
     bindSortHeaders();
     bindSearch();
 
-    // 初回ロード
+    // 初回ロード（エラーハンドリング込み）
     await loadInitialData();
 
     // ポーリング
@@ -341,7 +344,7 @@ async function init(){
       }
     });
 
-  } catch(e) {
+  } catch (e) {
     console.error("init中のエラー:", e);
     showError("初期化中に問題が発生しました。開発者に確認してください。");
   }
