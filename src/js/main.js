@@ -208,7 +208,7 @@ async function init(){
     bindMapStopFollow();
 
     // 起動時に現在地を一度表示
-    showMyLocationOnce({ pan:true, targetZoom:15 });
+    showMyLocationOnce({ center:true, gentleZoom:true, zoomStep=1 });
 
     // テーブルの行選択のパン正常化のため初期化
     setRowClickHandler((lat, lng, name) => panToAndOpen(lat, lng, name));
