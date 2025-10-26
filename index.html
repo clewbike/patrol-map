@@ -2,8 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <!-- ✅ ページ全体のブラウザ拡大/縮小を無効化（Leaflet の地図ズームは動作します） -->
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>電池交換マップ</title>
   <meta name="robots" content="noindex,nofollow">
 
@@ -12,18 +11,16 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
 
   <style>
-    /* 共通フォント */
     :root { --ui-font: "Segoe UI","Helvetica Neue",sans-serif; }
     html, body { height:100%; }
     html.no-hscroll, body.no-hscroll { overflow-x: hidden; overscroll-behavior-x: none; }
     body { margin:0; background:#f7f7f7; font-family: var(--ui-font); -webkit-text-size-adjust:100%; }
 
-    /* マップ領域は自由にジェスチャ（パン/ピンチズーム） */
     #map { height:100%; }
 
-    /* ✅ マップ以外はダブルタップ/ピンチでズームさせない */
+    /* マップ以外はズームさせない（※iOSのピンチは完全には止めにくいが抑制） */
     #legend-top, #hud, #menuBtn, #drawer, #refreshBtn, #locateFab, #tipBackdrop, #tipBox {
-      touch-action: pan-y;               /* 横パン抑制＋ダブルタップズーム抑止 */
+      touch-action: pan-y;
     }
 
     /* ── 左上：凡例（コンパクト） ───────────────── */
@@ -38,37 +35,19 @@
     .legend-row{
       display:grid;
       grid-template-columns: auto 24px 18px; /* 名称 / 件数 / チェック */
-      align-items:center;
-      column-gap:4px;
-      margin:1px 0;
+      align-items:center; column-gap:4px; margin:1px 0;
     }
     .legend-left{ display:flex; align-items:center; gap:4px; min-width:0; }
     .legend-dot{ font-weight:700; }
-    .legend-count{
-      text-align:left;
-      font-weight:700;
-      font-variant-numeric: tabular-nums;
-      letter-spacing:.01em;
-    }
+    .legend-count{ text-align:left; font-weight:700; font-variant-numeric: tabular-nums; letter-spacing:.01em; }
     .legend-ctrl{ width:18px; display:flex; justify-content:flex-start; }
     input[type=checkbox]{ transform:scale(1.0); cursor:pointer; }
 
-    .legend-note-wrap{
-      display:flex; align-items:center; justify-content:space-between;
-      gap:6px; margin-top:4px;
-    }
-    .legend-note{
-      font-size:10.8px; color:#b00020; line-height:1.4; white-space:pre-line;
-    }
+    .legend-note-wrap{ display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:4px; }
+    .legend-note{ font-size:10.8px; color:#b00020; line-height:1.4; white-space:pre-line; }
 
-    /* ── Tips（iボタン/ボックス） ─────────── */
-    .tip-btn{
-      width:16px; height:16px; border-radius:50%;
-      border:0; cursor:pointer;
-      background:#eef3ff; color:#2c7be5; font:700 11px/16px system-ui;
-      display:inline-flex; align-items:center; justify-content:center;
-      flex:0 0 auto;
-    }
+    /* ── Tips ─────────────────────────────────────── */
+    .tip-btn{ width:16px; height:16px; border-radius:50%; border:0; cursor:pointer; background:#eef3ff; color:#2c7be5; font:700 11px/16px system-ui; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
     .tip-btn:active{ transform:scale(.96); }
     #tipBackdrop{ position:fixed; inset:0; background:rgba(0,0,0,.25); display:none; z-index:1100; }
     #tipBox{
@@ -82,7 +61,7 @@
     #tipBox li{ margin:2px 0; }
     #tipBox .close{ float:right; margin-left:8px; cursor:pointer; color:#ddd; font-weight:700; }
 
-    /* ── 右下：更新時刻＋クレジット ───────────────── */
+    /* ── 右下：更新時刻＋クレジット ─────────────── */
     #hud{
       position:absolute; right:4px; bottom:4px; z-index:1000;
       display:flex; flex-direction:column; align-items:flex-end; gap:4px;
@@ -95,25 +74,19 @@
       box-shadow:0 1px 3px rgba(0,0,0,.3);
       pointer-events:auto;
     }
-    #credit{
-      font:10px/1 var(--ui-font); color:#ddd;
-      white-space:nowrap; pointer-events:auto; margin-right:2px;
-    }
+    #credit{ font:10px/1 var(--ui-font); color:#ddd; white-space:nowrap; pointer-events:auto; margin-right:2px; }
     #credit a{ color:#ddd; text-decoration:none; }
 
-    /* ── 右下：未読あり更新ボタン ───────────── */
+    /* ── 未読あり更新ボタン ───────────────────── */
     #refreshBtn{
       position:absolute; right:8px; bottom:120px; z-index:1000;
       background:#fff; border:1px solid #ccc; border-radius:999px;
       padding:8px 12px; font:12px var(--ui-font); cursor:pointer; display:none;
       box-shadow:0 2px 8px rgba(0,0,0,.25);
     }
-    #refreshBadge{
-      display:none; margin-left:8px; width:8px; height:8px; border-radius:50%;
-      background:#e60026; vertical-align:middle;
-    }
+    #refreshBadge{ display:none; margin-left:8px; width:8px; height:8px; border-radius:50%; background:#e60026; vertical-align:middle; }
 
-    /* ── 現在地FAB ─────────────────────── */
+    /* ── 現在地FAB ─────────────────────────── */
     #locateFab{ position:absolute; right:8px; bottom:64px; z-index:1000; pointer-events:auto; }
     .fab-btn{
       width:50px; height:50px; border-radius:50%; border:none; cursor:pointer; background:#fff;
@@ -125,44 +98,46 @@
     .fab-btn svg{ width:24px; height:24px; transition: fill .2s; }
     .following svg{ fill:#2c7be5; } .idle svg{ fill:#777; }
 
-    /* タグ／バッジ */
-    .badge{ display:inline-block; min-width:1.6em; text-align:center; padding:1px 6px; border-radius:10px; background:#eee; font-size:11px; }
+    /* タグ／バッジ（ピンのバッジと同じ） */
     .tag{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:bold; color:#fff; }
     .tag-urgent{ background:#e60026; }
     .tag-watch-yellow{ background:#ff8c00; }
     .tag-watch-green{ background:#6fa86f; }
 
-    /* Leaflet既定コントロール非表示・現在地マーカー */
+    /* Leaflet 既定コントロール非表示・現在地マーカー */
     .leaflet-control-zoom, .leaflet-control-attribution{ display:none !important; }
     .leaflet-div-icon{ background:transparent !important; border:none !important; }
     .me-dot{ width:12px; height:12px; border-radius:50%; background:#2c7be5; border:2px solid #fff; box-shadow:0 0 6px 2px rgba(44,123,229,0.5); pointer-events:none; }
 
-    /* ── 右上：メニュー（一覧ドロワー） ── */
+    /* ── 右上：シンプルなメニューボタン（≡のみ） ───── */
     #menuBtn{
       position:absolute; top:8px; right:8px; z-index:1000;
-      background:#fff; border:1px solid #ddd; border-radius:8px;
-      padding:6px 10px; font:12.5px/1 var(--ui-font); cursor:pointer;
+      width:40px; height:40px; border-radius:10px;
+      display:flex; align-items:center; justify-content:center;
+      background:#fff; border:1px solid #ddd; cursor:pointer;
       box-shadow:0 2px 6px rgba(0,0,0,.15);
+      font:18px/1 var(--ui-font);
     }
+
+    /* ── 右側ドロワー（一覧） ───────────────── */
     #drawer{
-      position:absolute; top:0; right:0; bottom:0; width: min(520px, 92vw);
-      background:#fff; z-index:1200; box-shadow: -6px 0 16px rgba(0,0,0,.25);
+      position:absolute; top:0; right:0; bottom:0; width: min(580px, 94vw); /* ←少し広げた */
+      background:#fff; z-index:1200; box-shadow:-6px 0 16px rgba(0,0,0,.25);
       transform: translateX(100%); transition: transform .25s ease;
-      display:flex; flex-direction:column; overflow-x:hidden;  /* ✅ 横スクロール禁止 */
+      display:flex; flex-direction:column; overflow-x:hidden;
       font-family: var(--ui-font);
+      touch-action: none; /* 一覧内でのピンチズームを抑制 */
     }
     #drawer.open{ transform: translateX(0); }
-    .drawer-head{
-      display:flex; align-items:center; justify-content:space-between; gap:8px;
-      padding:10px 12px; border-bottom:1px solid #eee; font-family: var(--ui-font);
-    }
+    .drawer-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; border-bottom:1px solid #eee; }
     .drawer-head b{ font-size:14px; }
     .drawer-close{ border:0; background:transparent; font-size:18px; cursor:pointer; padding:6px; }
 
-    .drawer-body{ padding:10px 12px; overflow:auto; font-family: var(--ui-font); }
+    .drawer-body{ padding:10px 12px; overflow:auto; }
     .tbl-tools{ display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
     .tbl-tools input[type="text"]{
-      border:1px solid #ccc; border-radius:6px; padding:6px 8px; font-size:12px; width:220px; font-family: var(--ui-font);
+      border:1px solid #ccc; border-radius:6px; padding:6px 8px; font-size:12px; width:240px;
+      font-family: var(--ui-font);
     }
 
     .tbl{ width:100%; border-collapse:separate; border-spacing:0; font-size:12px; table-layout:fixed; font-family: var(--ui-font); }
@@ -171,12 +146,12 @@
       position:sticky; top:0; background:#fafafa; z-index:1; cursor:pointer; user-select:none;
       border-bottom:1px solid #e5e5e5;
     }
-    /* ✅ 列幅：ポート名 50% / 電池比重 25% / 目安交換台数 25% */
     .tbl .col-name  { width: 50%; }
-    .tbl .col-weight{ width: 25%; }
-    .tbl .col-count { width: 25%; }
-
-    .tbl th .sort{ font-size:10px; opacity:.6; margin-left:6px; }
+    .tbl .col-weight{ width: 22%; }
+    .tbl .col-count { width: 28%; }
+    .tbl th .sort{
+      font-size:11px; opacity:.7; margin-left:4px; vertical-align:middle;
+    }
     .nowrap{ white-space:nowrap; }
   </style>
 </head>
@@ -186,23 +161,17 @@
   <!-- 左上：凡例 -->
   <div id="legend-top">
     <div class="legend-row">
-      <div class="legend-left">
-        <span class="legend-dot" style="color:#e60026;">●</span><span>交換必須</span>
-      </div>
+      <div class="legend-left"><span class="legend-dot" style="color:#e60026;">●</span><span>交換必須</span></div>
       <div class="legend-count" id="cnt-urgent">0</div>
-      <div class="legend-ctrl"><!-- 赤はダミー列 --></div>
+      <div class="legend-ctrl"></div>
     </div>
     <div class="legend-row">
-      <div class="legend-left">
-        <span class="legend-dot" style="color:#ff8c00;">●</span><span>交換可能</span>
-      </div>
+      <div class="legend-left"><span class="legend-dot" style="color:#ff8c00;">●</span><span>交換可能</span></div>
       <div class="legend-count" id="cnt-yellow">0</div>
       <div class="legend-ctrl"><label><input type="checkbox" id="chk-yellow" checked></label></div>
     </div>
     <div class="legend-row">
-      <div class="legend-left">
-        <span class="legend-dot" style="color:#6fa86f;">●</span><span>経過観測</span>
-      </div>
+      <div class="legend-left"><span class="legend-dot" style="color:#6fa86f;">●</span><span>経過観測</span></div>
       <div class="legend-count" id="cnt-green">0</div>
       <div class="legend-ctrl"><label><input type="checkbox" id="chk-green"></label></div>
     </div>
@@ -213,8 +182,10 @@
     </div>
   </div>
 
-  <!-- 右上：メニュー（一覧） -->
-  <button id="menuBtn">≡ 一覧</button>
+  <!-- 右上：シンプルメニュー（≡） -->
+  <button id="menuBtn" aria-label="一覧" title="一覧">≡</button>
+
+  <!-- 右側：一覧ドロワー -->
   <div id="drawer" aria-hidden="true">
     <div class="drawer-head">
       <b>電池交換ポート一覧</b>
@@ -227,12 +198,12 @@
       <table class="tbl" id="portsTable">
         <thead>
           <tr>
-            <th data-key="name"   class="col-name">ポート名 <span class="sort" id="sort-name">↕</span></th>
-            <th data-key="weight" class="col-weight nowrap">電池比重 <span class="sort" id="sort-weight">↕</span></th>
-            <th data-key="count"  class="col-count  nowrap">目安交換台数 <span class="sort" id="sort-count">↕</span></th>
+            <th data-key="name"   class="col-name">ポート名 <span class="sort" id="sort-name">⇅</span></th>
+            <th data-key="weight" class="col-weight nowrap">電池比重 <span class="sort" id="sort-weight">⇅</span></th>
+            <th data-key="count"  class="col-count  nowrap">目安交換台数 <span class="sort" id="sort-count">⇅</span></th>
           </tr>
         </thead>
-        <tbody id="portsTbody"><!-- 動的挿入 --></tbody>
+        <tbody id="portsTbody"></tbody>
       </table>
     </div>
   </div>
@@ -262,17 +233,16 @@
   <div id="tipBox"></div>
 
   <script>
-    /* ── マップ（CARTO） ── */
+    /* マップ（CARTO） */
     const MAP=L.map('map',{zoomControl:false}).setView([35.0116,135.7681],12);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
       {maxZoom:19,subdomains:'abcd'}).addTo(MAP);
     const markersLayer=L.layerGroup().addTo(MAP);
 
-    /* プログラム操作中フラグ（追従OFF誤判定の抑制） */
+    /* プログラム操作抑制フラグ */
     let suppressUserOff=false;
     function withProgrammatic(fn, ms=600){
-      suppressUserOff=true;
-      try{ fn(); } finally{ setTimeout(()=>{ suppressUserOff=false; }, ms); }
+      suppressUserOff=true; try{ fn(); } finally{ setTimeout(()=>{ suppressUserOff=false; }, ms); }
     }
 
     /* 凡例UI */
@@ -341,13 +311,30 @@
 
         const html=`
           <div><strong>${name}</strong> ${tagHtml}</div>
-          <div style="margin-top:6px">電池比重: <span class="badge">${weight}</span></div>
-          <div>目安交換台数: <strong>${count}</strong></div>
-          <div style="margin-top:10px">
-            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving" target="_blank" rel="noopener">車経路（GoogleMAP）</a>
+
+          <div style="margin-top:12px; line-height:1.7;">
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving"
+               target="_blank" rel="noopener">車経路（GoogleMAP）</a>
+          </div>
+
+          <div style="margin-top:12px; line-height:1.7;">
+            <div>▼ポート巡回報告フォーム</div>
+            <div><a href="https://forms.gle/76DsMzvctM4ajJt86" target="_blank" rel="noopener">
+              https://forms.gle/76DsMzvctM4ajJt86
+            </a></div>
+          </div>
+
+          <div style="margin-top:12px; line-height:1.7;">
+            <div>▼不具合・修理対応報告フォーム</div>
+            <div><a href="https://forms.gle/WTEwgx3QVEkprt176" target="_blank" rel="noopener">
+              https://forms.gle/WTEwgx3QVEkprt176
+            </a></div>
           </div>`;
-        L.circleMarker([lat,lng],{radius:radiusByCount(count),color:'#fff',weight:1.4,fillColor:fill,fillOpacity:.92})
-          .bindPopup(html).addTo(markersLayer);
+
+        L.circleMarker([lat,lng],{
+          radius:radiusByCount(count), color:'#fff', weight:1.4,
+          fillColor:fill, fillOpacity:.92
+        }).bindPopup(html).addTo(markersLayer);
       }
 
       const latest=(data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0]||'-';
@@ -388,7 +375,7 @@
       if(res.ok){ lastDataJson=await res.text(); render(JSON.parse(lastDataJson)); }
     }catch(e){ console.error(e); } })();
 
-    /* 現在地：タップ直後のみ追従ON。ズーム/ドラッグでOFF */
+    /* 現在地（タップ直後のみ追従ON。ズーム/ドラッグでOFF） */
     let meMarker=null, meCircle=null, watchId=null, lastMe=null, following=false;
     const btn=document.getElementById('locateBtn');
 
@@ -405,9 +392,7 @@
         meCircle.setLatLng([lat,lng]).setRadius(acc||30);
       }
       lastMe={lat,lng};
-      if(following){
-        withProgrammatic(()=> MAP.panTo([lat,lng]), 400);
-      }
+      if(following){ withProgrammatic(()=> MAP.panTo([lat,lng]), 400); }
     }
 
     btn.addEventListener('click', ()=>{
@@ -447,7 +432,7 @@
 
     if('geolocation' in navigator){
       navigator.geolocation.getCurrentPosition(
-        pos=>{ const {latitude,longitude,accuracy}=pos.coords; showOrUpdateMe(latitude,longitude,accuracy); },
+        pos=>{ const {latitude,longitude,accuracy}=p.coords; showOrUpdateMe(latitude,longitude,accuracy); },
         ()=>{}, { enableHighAccuracy:true, timeout:10000 }
       );
     }
@@ -480,58 +465,35 @@
         <li>表示定義「交換台数 2台」</li>
       </ul>
     `;
-    function openTips(){
-      tipBox.innerHTML=tipHtml;
-      tipBackdrop.style.display='block';
-      tipBox.style.display='block';
-      document.getElementById('tipClose')?.addEventListener('click', closeTips);
-    }
-    function closeTips(){
-      tipBackdrop.style.display='none';
-      tipBox.style.display='none';
-    }
+    function openTips(){ tipBox.innerHTML=tipHtml; tipBackdrop.style.display='block'; tipBox.style.display='block'; document.getElementById('tipClose')?.addEventListener('click', closeTips); }
+    function closeTips(){ tipBackdrop.style.display='none'; tipBox.style.display='none'; }
     tipAll.addEventListener('click', openTips);
     tipBackdrop.addEventListener('click', closeTips);
     document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeTips(); });
 
-    /* ── 一覧（右上ドロワー） ── */
+    /* 一覧（ドロワー） */
     const drawer = document.getElementById('drawer');
     const menuBtn = document.getElementById('menuBtn');
     const drawerClose = document.getElementById('drawerClose');
     const qGlobal = document.getElementById('qGlobal');
-    let sortKey = 'weight', sortDir = 'desc'; // 既定：比重の高い順
+    let sortKey = 'weight', sortDir = 'desc';
     const tbody = document.getElementById('portsTbody');
 
     function isDrawerOpen(){ return drawer.classList.contains('open'); }
-    function openDrawer(){
-      drawer.classList.add('open');
-      drawer.setAttribute('aria-hidden','false');
-      document.documentElement.classList.add('no-hscroll');  // ✅ 画面横スクロール封じ
-      document.body.classList.add('no-hscroll');             // ✅ 画面横スクロール封じ
-      buildTable();
-    }
-    function closeDrawer(){
-      drawer.classList.remove('open');
-      drawer.setAttribute('aria-hidden','true');
-      document.documentElement.classList.remove('no-hscroll');
-      document.body.classList.remove('no-hscroll');
-    }
-
+    function openDrawer(){ drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false'); document.documentElement.classList.add('no-hscroll'); document.body.classList.add('no-hscroll'); buildTable(); }
+    function closeDrawer(){ drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); document.documentElement.classList.remove('no-hscroll'); document.body.classList.remove('no-hscroll'); }
     menuBtn.addEventListener('click', openDrawer);
     drawerClose.addEventListener('click', closeDrawer);
 
-    // ヘッダクリックでソート
+    // ソート：アイコンは ⇅ / ▲ / ▼ に統一
     document.querySelectorAll('#portsTable thead th').forEach(th=>{
       th.addEventListener('click', ()=>{
-        const key = th.getAttribute('data-key');
-        if(!key) return;
-        if(sortKey===key){ sortDir = (sortDir==='asc'?'desc':'asc'); }
-        else { sortKey=key; sortDir='asc'; }
+        const key = th.getAttribute('data-key'); if(!key) return;
+        if(sortKey===key){ sortDir = (sortDir==='asc'?'desc':'asc'); } else { sortKey=key; sortDir='asc'; }
         buildTable();
       });
     });
 
-    // キーワード検索（全列）
     qGlobal.addEventListener('input', debounce(buildTable, 150));
 
     function getRowsFromData(){
@@ -550,11 +512,10 @@
 
       let filtered = rows.filter(row=>{
         if(!q) return true;
-        const hay = [row.name, row.updated, String(row.weight), String(row.count)].join(' ').toLowerCase();
+        const hay = [row.name, String(row.weight), String(row.count)].join(' ').toLowerCase();
         return hay.includes(q);
       });
 
-      // ソート
       filtered.sort((a,b)=>{
         const ka=a[sortKey], kb=b[sortKey];
         let cmp=0;
@@ -563,12 +524,11 @@
         return sortDir==='asc'?cmp:-cmp;
       });
 
-      // 矢印更新
-      document.querySelectorAll('.sort').forEach(el=> el.textContent='↕');
+      // ソートアイコン更新
+      document.querySelectorAll('.sort').forEach(el=> el.textContent='⇅');
       const sortEl = document.getElementById('sort-'+sortKey);
-      if(sortEl) sortEl.textContent = (sortDir==='asc'?'↑':'↓');
+      if(sortEl) sortEl.textContent = (sortDir==='asc'?'▲':'▼');
 
-      // 描画
       tbody.innerHTML = '';
       const frag = document.createDocumentFragment();
       for(const r of filtered){
@@ -578,7 +538,6 @@
           <td class="nowrap">${r.weight}</td>
           <td class="nowrap">${r.count}</td>
         `;
-        // 行クリック：パン＆ポップアップ
         tr.addEventListener('click', ()=>{
           const status = statusOf(r.weight,r.count,r.name);
           const tagHtml = status==='urgent'
@@ -589,10 +548,24 @@
 
           const html=`
             <div><strong>${escapeHtml(r.name)}</strong> ${tagHtml}</div>
-            <div style="margin-top:6px">電池比重: <span class="badge">${r.weight}</span></div>
-            <div>目安交換台数: <strong>${r.count}</strong></div>
-            <div style="margin-top:10px">
-              <a href="https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}&travelmode=driving" target="_blank" rel="noopener">車経路（GoogleMAP）</a>
+
+            <div style="margin-top:12px; line-height:1.7;">
+              <a href="https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}&travelmode=driving"
+                 target="_blank" rel="noopener">車経路（GoogleMAP）</a>
+            </div>
+
+            <div style="margin-top:12px; line-height:1.7;">
+              <div>▼ポート巡回報告フォーム</div>
+              <div><a href="https://forms.gle/76DsMzvctM4ajJt86" target="_blank" rel="noopener">
+                https://forms.gle/76DsMzvctM4ajJt86
+              </a></div>
+            </div>
+
+            <div style="margin-top:12px; line-height:1.7;">
+              <div>▼不具合・修理対応報告フォーム</div>
+              <div><a href="https://forms.gle/WTEwgx3QVEkprt176" target="_blank" rel="noopener">
+                https://forms.gle/WTEwgx3QVEkprt176
+              </a></div>
             </div>`;
 
           withProgrammatic(()=>{
@@ -603,7 +576,6 @@
           document.querySelectorAll('#portsTbody tr').forEach(row=>row.style.background='');
           tr.style.background='#e6f0ff';
         });
-
         frag.appendChild(tr);
       }
       tbody.appendChild(frag);
@@ -611,6 +583,7 @@
 
     function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
     function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+
   </script>
 </body>
 </html>
