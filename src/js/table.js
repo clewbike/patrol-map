@@ -1,5 +1,10 @@
 // @ts-check
 
+let rowClickHandler = null;
+export function setRowClickHandler(fn) {
+  rowClickHandler = typeof fn === 'function' ? fn : null;
+}
+
 // DOM参照
 const qGlobal = document.getElementById('qGlobal');
 const tbody   = document.getElementById('portsTbody');
@@ -49,10 +54,13 @@ export function renderTable(onRowClick){
       <td>${r.name}</td><td>${r.weight}</td><td>${r.count}</td>
     </tr>`).join('');
 
-  Array.from(tbody.querySelectorAll('tr')).forEach(tr=>{
-    tr.addEventListener('click', ()=>{
-      const lat = parseFloat(tr.dataset.lat), lng = parseFloat(tr.dataset.lng), name = tr.dataset.name;
-      onRowClick?.(lat, lng, name);
+  // 行クリック → パン＆ポップアップ
+  Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+    tr.addEventListener('click', () => {
+      const lat  = parseFloat(tr.dataset.lat);
+      const lng  = parseFloat(tr.dataset.lng);
+      const name = tr.dataset.name;
+      if (rowClickHandler) rowClickHandler(lat, lng, name);
     });
   });
 }
