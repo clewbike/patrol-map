@@ -1,7 +1,7 @@
 // @ts-check
 import { statusOf } from './status.js';
 import { loadData, startPolling, latestUpdate } from './data.js';
-import { initMap, drawMarkers, panToAndOpen, getCenterZoom, setCenterZoom } from './map.js';
+import { initMap, drawMarkers, panToAndOpen, getCenterZoom, setCenterZoom, getMap } from './map.js';
 import { setTableData, renderTable, bindSortHeaders, bindSearch } from './table.js';
 
 // ── 追加：ユーザー向けエラー表示 & エラー対応つき初回ロード ─────────────────
@@ -192,11 +192,13 @@ function init(){
   function updateFollowIcon(){ btnLocate.classList.toggle('following',following); btnLocate.classList.toggle('idle',!following); }
   function stopWatch(){ if(watchId){ navigator.geolocation.clearWatch(watchId); watchId=null; } }
   function showOrUpdateMe(lat,lng,acc){
-    const MAP = window.L?.map; // 参照だけ
+    const MAP = getMap();  // ← これで既存マップを取得
+    if(!MAP) return;
+  
     if(!meMarker){
       const div=L.divIcon({className:'', html:'<div class="me-dot"></div>', iconSize:[16,16], iconAnchor:[8,8]});
-      meMarker=L.marker([lat,lng],{icon:div,interactive:false}).addTo(L.map('map'));
-      meCircle=L.circle([lat,lng],{radius:acc||30,color:'#2c7be5',weight:1,fillColor:'#2c7be5',fillOpacity:0.12,interactive:false}).addTo(L.map('map'));
+      meMarker=L.marker([lat,lng],{icon:div,interactive:false}).addTo(MAP);
+      meCircle=L.circle([lat,lng],{radius:acc||30,color:'#2c7be5',weight:1,fillColor:'#2c7be5',fillOpacity:0.12,interactive:false}).addTo(MAP);
     }else{
       meMarker.setLatLng([lat,lng]);
       meCircle.setLatLng([lat,lng]).setRadius(acc||30);
