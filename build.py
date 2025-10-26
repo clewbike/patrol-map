@@ -13,14 +13,14 @@ def now_jst():
     return (datetime.now(timezone.utc) + timedelta(hours=9)).strftime("%Y-%m-%d %H:%M:%S")
 
 def write_error_file(error=False, message=""):
-    data = {
-        "generated_at": now_jst(),
-        "error": error,
-    }
+    out = {"generated_at": now_jst(), "error": error}
     if error:
-        data["message"] = message or "データ取得のエラーが確認されました。開発者に確認してください。"
-    with open(ERROR_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+        out["message"] = message or "データ取得のエラーが確認されました。開発者に確認してください。"
+    with open("error.json", "w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False, indent=2)
+
+# 正常系の最後
+write_error_file(False)
 
 def main():
     try:
