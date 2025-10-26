@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Patrol Map Data",
+  "type": "object",
+  "required": ["items"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "lat", "lng", "weight", "count"],
+        "additionalProperties": false,
+        "properties": {
+          "name":   { "type": "string"  },
+          "lat":    { "type": "number"  },
+          "lng":    { "type": "number"  },
+          "weight": { "type": "number"  },
+          "count":  { "type": "number"  },
+          "updated":{ "type": "string"  }
+        }
+      }
+    }
+  }
+}
