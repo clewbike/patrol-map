@@ -4,6 +4,51 @@ import { loadData, startPolling, latestUpdate } from './data.js';
 import { initMap, drawMarkers, panToAndOpen, getCenterZoom, setCenterZoom } from './map.js';
 import { setTableData, renderTable, bindSortHeaders, bindSearch } from './table.js';
 
+// ── 追加：ユーザー向けエラー表示 & エラー対応つき初回ロード ─────────────────
+function showError(msg) {
+  document.body.innerHTML = `
+    <div class="error-container" style="text-align:center;margin-top:20vh;font-family:Segoe UI,system-ui,sans-serif;color:#b00020;">
+      <h2 style="font-size:1.6em;margin-bottom:.6em;">⚠️ データ取得のエラーが確認されました</h2>
+      <p style="line-height:1.6;">${msg || "データ取得のエラーが確認されました。開発者に確認してください。"}</p>
+      <p style="line-height:1.6;">開発者に確認してください。</p>
+    </div>
+  `;
+}
+
+/** error.json を確認してから data.json を読み込む初回ロード */
+async function loadInitialData() {
+  try {
+    // 1) error.json があれば先に表示して終了
+    const errRes = await fetch('./error.json', { cache: 'no-store' });
+    if (errRes.ok) {
+      const errData = await errRes.json();
+      if (errData?.error) {
+        showError(errData.message);
+        return false;
+      }
+    }
+
+    // 2) 通常の data.json を読み込み（data.js の loadData を利用）
+    const json = await loadData(); // ← 既存の import { loadData } from './data.js'
+    if (json?.error) {
+      showError(json.message);
+      return false;
+    }
+
+    // 3) 既存の初期描画フロー（今まで main.js でやっていた内容）
+    lastDataJsonText = JSON.stringify(json);
+    classified = classify(json.items);
+    setTableData(classified);                 // 一覧（初期は weight→count の降順）
+    drawMarkers(classified, viewFilter());    // 地図
+    updateTime.textContent = latestUpdate(json.items);
+    return true;
+  } catch (e) {
+    console.error(e);
+    showError("データの取得中にエラーが発生しました。開発者に確認してください。");
+    return false;
+  }
+}
+
 const chkYellow = document.getElementById('chk-yellow');
 const chkGreen  = document.getElementById('chk-green');
 const refreshBtn   = document.getElementById('refreshBtn');
@@ -96,6 +141,7 @@ function init(){
         <li>経過観測は巡回不要、起動時に標準で☑チェックなし</li>
         <li>表示定義「交換台数 2台」</li>
       </ul>`;
+  
   document.getElementById('tipAll').addEventListener('click', ()=>{
     tipBox.innerHTML=tipHtml; tipBackdrop.style.display='block'; tipBox.style.display='block';
     document.getElementById('tipClose')?.addEventListener('click', closeTips);
@@ -112,14 +158,8 @@ function init(){
   bindSortHeaders();
   bindSearch();
 
-  // データ初回ロード
-  loadData().then(json=>{
-    lastDataJsonText = JSON.stringify(json);
-    classified = classify(json.items);
-    setTableData(classified);                 // ← 一覧（初期は weight→count の降順）
-    drawMarkers(classified, viewFilter());    // ← 地図
-    updateTime.textContent = latestUpdate(json.items);
-  });
+  // データ初回ロード（error.json にも対応）
+  loadInitialData();
 
   // ポーリング：差分あれば更新ボタンを出す
   startPolling((txt)=>{
