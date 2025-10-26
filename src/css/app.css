@@ -164,3 +164,18 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
 .tag-urgent{background:#e60026;}
 .tag-watch-yellow{background:#ff8c00;}
 .tag-watch-green{background:#6fa86f;}
+
+/* ─────────────── エラー画面用 ─────────────── */
+.error-container {
+  text-align: center;
+  margin-top: 20vh;
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  color: #b00020;
+}
+.error-container h2 {
+  font-size: 1.6em;
+  margin-bottom: 0.6em;
+}
+.error-container p {
+  line-height: 1.6;
+}
