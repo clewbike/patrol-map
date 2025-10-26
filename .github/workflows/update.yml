@@ -33,10 +33,16 @@ jobs:
           RANGE: "GoogleMAPプロット用!A:E"   # ←タブ名に合わせて
         run: |
           python build.py
+          # ✅ error.json が無ければ正常状態で作る（404防止）
+          if [ ! -f error.json ]; then
+            echo '{"error": false, "generated_at": "'"$(date -u +"%Y-%m-%dT%H:%M:%SZ")"'"}' > error.json
+          fi
           echo "---- ls -al (after build) ----"
           ls -al
           echo "---- head data.json ----"
           head -n 20 data.json || true
+          echo "---- cat error.json ----"
+          cat error.json || true
 
       - name: Git status (before commit)
         run: |
