@@ -158,7 +158,7 @@ function isSecureOrigin(){
   return location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 }
 /* 起動時：一度だけ現在地をセンタリング */
-async function showMyLocationOnce({ center=true, gentleZoom=false } = {}){
+async function showMyLocationOnce({ center=true, gentleZoom=false, zoomStep=1 } = {}){
   try{
     if(!('geolocation' in navigator)){
       uiGeoNotice('端末の位置情報に非対応です'); return;
