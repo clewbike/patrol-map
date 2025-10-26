@@ -2,7 +2,7 @@
 import { statusOf } from './status.js';
 import { loadData, startPolling, latestUpdate } from './data.js';
 import { initMap, drawMarkers, panToAndOpen, getCenterZoom, setCenterZoom, getMap } from './map.js';
-import { setTableData, renderTable, bindSortHeaders, bindSearch } from './table.js';
+import { setTableData, renderTable, bindSortHeaders, bindSearch, setRowClickHandler } from './table.js';
 
 /*───────────────────────────────────────────────
   エラー表示関数
@@ -92,7 +92,7 @@ function classify(items){
 }
 
 function viewFilter(){ return { showYellow: chkYellow.checked, showGreen: chkGreen.checked }; }
-function redrawAll(){ drawMarkers(classified, viewFilter()); renderTable(window.__onRowClick); }
+function redrawAll(){ drawMarkers(classified, viewFilter()); renderTable(); }
 
 /*───────────────────────────────────────────────
   現在地マーカー＆追従
@@ -192,6 +192,9 @@ async function init(){
 
     // 起動時に現在地を一度表示
     showMyLocationOnce({ pan:true, targetZoom:15 });
+
+    // テーブルの行選択のパン正常化のため初期化
+    setRowClickHandler((lat, lng, name) => panToAndOpen(lat, lng, name));
 
     // チェックイベント
     chkYellow.addEventListener('change', ()=>{ userTouchedYellow=true; redrawAll(); });
