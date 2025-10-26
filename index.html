@@ -453,76 +453,74 @@ drawerClose.addEventListener('click', ()=>{
 /* テーブル生成・検索・ソート・行クリック（パンのみ／ズーム固定） */
 const qGlobal = document.getElementById('qGlobal');
 const tbody   = document.getElementById('portsTbody');
-let sortKey = 'weight';   // ← 初期ソートキーを「電池比重」
-let sortDir = -1;         // ← 降順
+// ▼ 初期設定（一覧を開いたときの並び順）
+let sortKey = 'weight';  // 電池比重を基準に
+let sortDir = -1;        // 降順（大きい→小さい）
 let tableRows = [];
 
-function buildTable(items){
-  tableRows = (items||[]).map(r=>({
-    name:r.name, weight:+r.weight||0, count:+r.count||0,
-    lat:r.lat, lng:r.lng, s:r.s ?? null
-  }));
-  renderTable();
-}
-  
-/* renderTable 内のソートロジックを改良 */
+/* ── テーブル描画 ── */
 function renderTable(){
   const q = qGlobal.value.trim().toLowerCase();
+
+  // 🔍 検索はポート名のみ対象
   let rows = tableRows.filter(r =>
     !q || r.name.toLowerCase().includes(q)
   );
 
-  // 並び替えロジック（複合ソート対応）
+  // 🔽 並び替え（複合ソート対応）
   if (sortKey) {
-    rows.sort((a,b)=>{
+    rows.sort((a, b) => {
       if (sortKey === 'weight') {
-        // 電池比重の降順優先、同値なら台数降順
+        // 電池比重降順 → 同値なら台数降順
         if (a.weight !== b.weight) return sortDir * (b.weight - a.weight);
         return sortDir * (b.count - a.count);
       }
       if (sortKey === 'count') {
-        // 目安交換台数で並べる（同値なら比重降順）
+        // 台数降順 → 同値なら比重降順
         if (a.count !== b.count) return sortDir * (b.count - a.count);
         return sortDir * (b.weight - a.weight);
       }
       // 名前ソート（文字列）
-      const av=a.name, bv=b.name;
-      if (av<bv) return sortDir===-1?1:-1;
-      if (av>bv) return sortDir===-1?-1:1;
+      const av = a.name, bv = b.name;
+      if (av < bv) return sortDir === -1 ? 1 : -1;
+      if (av > bv) return sortDir === -1 ? -1 : 1;
       return 0;
     });
   }
 
+  // HTML生成（そのままでOK）
   tbody.innerHTML = rows.map(r=>`
     <tr data-lat="${r.lat}" data-lng="${r.lng}" data-name="${r.name}">
       <td>${r.name}</td><td>${r.weight}</td><td>${r.count}</td>
     </tr>`).join('');
 
+  // 🖱 行クリックでマップ移動＆ポップアップ表示
   Array.from(tbody.querySelectorAll('tr')).forEach(tr=>{
     tr.addEventListener('click', ()=>{
-      const lat = parseFloat(tr.dataset.lat), lng = parseFloat(tr.dataset.lng), name = tr.dataset.name;
-      const key = `${lat},${lng},${name}`, m = markerByKey.get(key);
+      const lat = parseFloat(tr.dataset.lat),
+            lng = parseFloat(tr.dataset.lng),
+            name = tr.dataset.name;
+      const key = `${lat},${lng},${name}`;
+      const m = markerByKey.get(key);
       MAP.panTo([lat,lng], { animate:true });
-      if(m) m.openPopup();
+      if (m) m.openPopup();
     });
   });
 }
 
-/* ソート切り替え関数 */
+/* ── 列ヘッダークリックでソート切り替え ── */
 function setSort(k){
-  if(sortKey !== k){
+  if (sortKey !== k){
     sortKey = k;
-    sortDir = -1; // 新しいキーをクリックしたら降順から開始
+    sortDir = -1; // 新しい列クリック時は降順スタート
   } else {
-    // 昇順⇄降順トグル
-    sortDir = (sortDir === 1 ? -1 : 1);
+    sortDir = (sortDir === 1 ? -1 : 1); // 昇⇄降トグル
   }
-
   document.getElementById('sort-name'  ).textContent = k==='name'   ? (sortDir===1?'↑':sortDir===-1?'↓':'⇅') : '⇅';
   document.getElementById('sort-weight').textContent = k==='weight' ? (sortDir===1?'↑':sortDir===-1?'↓':'⇅') : '⇅';
   document.getElementById('sort-count' ).textContent = k==='count'  ? (sortDir===1?'↑':sortDir===-1?'↓':'⇅') : '⇅';
   renderTable();
-  }
+}
 
 document.getElementById('th-name'  ).addEventListener('click', ()=>setSort('name'));
 document.getElementById('th-weight').addEventListener('click', ()=>setSort('weight'));
