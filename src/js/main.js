@@ -4,7 +4,9 @@ import { loadData, startPolling, latestUpdate } from './data.js';
 import { initMap, drawMarkers, panToAndOpen, getCenterZoom, setCenterZoom, getMap } from './map.js';
 import { setTableData, renderTable, bindSortHeaders, bindSearch } from './table.js';
 
-// ── 追加：ユーザー向けエラー表示 & エラー対応つき初回ロード ─────────────────
+/*───────────────────────────────────────────────
+  エラー表示関数
+───────────────────────────────────────────────*/
 function showError(msg) {
   document.body.innerHTML = `
     <div class="error-container" style="text-align:center;margin-top:20vh;font-family:Segoe UI,system-ui,sans-serif;color:#b00020;">
@@ -15,10 +17,11 @@ function showError(msg) {
   `;
 }
 
-/** error.json を確認してから data.json を読み込む初回ロード */
+/*───────────────────────────────────────────────
+  error.json チェックつき初回データロード
+───────────────────────────────────────────────*/
 async function loadInitialData() {
   try {
-    // 1) error.json があれば先に表示して終了
     const errRes = await fetch('./error.json', { cache: 'no-store' });
     if (errRes.ok) {
       const errData = await errRes.json();
@@ -28,18 +31,16 @@ async function loadInitialData() {
       }
     }
 
-    // 2) 通常の data.json を読み込み（data.js の loadData を利用）
-    const json = await loadData(); // ← 既存の import { loadData } from './data.js'
+    const json = await loadData();
     if (json?.error) {
       showError(json.message);
       return false;
     }
 
-    // 3) 既存の初期描画フロー（今まで main.js でやっていた内容）
     lastDataJsonText = JSON.stringify(json);
     classified = classify(json.items);
-    setTableData(classified);                 // 一覧（初期は weight→count の降順）
-    drawMarkers(classified, viewFilter());    // 地図
+    setTableData(classified);
+    drawMarkers(classified, viewFilter());
     updateTime.textContent = latestUpdate(json.items);
     return true;
   } catch (e) {
@@ -49,6 +50,9 @@ async function loadInitialData() {
   }
 }
 
+/*───────────────────────────────────────────────
+  共通UI・状態管理
+───────────────────────────────────────────────*/
 const chkYellow = document.getElementById('chk-yellow');
 const chkGreen  = document.getElementById('chk-green');
 const refreshBtn   = document.getElementById('refreshBtn');
@@ -59,7 +63,7 @@ let userTouchedYellow=false, userTouchedGreen=false;
 let lastDataJsonText = '';
 let classified = [];
 
-// 検索行クリック時の処理（table.js が呼ぶ）
+/* 行クリックで地図をパン＆ポップアップ */
 window.__onRowClick = (lat,lng,name)=> panToAndOpen(lat,lng,name);
 
 function setCounts(total){
@@ -68,6 +72,7 @@ function setCounts(total){
   document.getElementById('cnt-green' ).textContent = String(total.green);
 }
 
+/* ステータス分類 */
 function classify(items){
   const total={urgent:0,yellow:0,green:0};
   const arr = (items||[]).map(r=>{
@@ -79,7 +84,6 @@ function classify(items){
   });
   setCounts(total);
 
-  // “赤40以上”なら、未操作時のみ黄/緑を既定OFF
   if(total.urgent>=40){
     if(!userTouchedYellow) chkYellow.checked=false;
     if(!userTouchedGreen)  chkGreen.checked=false;
@@ -87,113 +91,12 @@ function classify(items){
   return arr;
 }
 
-/** 現在のチェック状態を取得 */
-function viewFilter(){
-  return { showYellow: chkYellow.checked, showGreen: chkGreen.checked };
-}
+function viewFilter(){ return { showYellow: chkYellow.checked, showGreen: chkGreen.checked }; }
+function redrawAll(){ drawMarkers(classified, viewFilter()); renderTable(window.__onRowClick); }
 
-/** 画面全再描画（地図＋一覧） */
-function redrawAll(){
-  drawMarkers(classified, viewFilter());
-  renderTable(window.__onRowClick);
-}
-
-/** 初期化 */
-function init(){
-  // Map
-  initMap();
-
-  // ★ 起動時に一度だけ現在地を表示（パン＆ズーム付き）
-  showMyLocationOnce({ pan:true, targetZoom:15 });
-
-  // …以下、既存の処理（チェック変更・ドロワー・Tips・テーブル等）
-
-  // チェック変更で再描画（地図のみ影響）
-  chkYellow.addEventListener('change', ()=>{ userTouchedYellow=true; redrawAll(); });
-  chkGreen .addEventListener('change', ()=>{ userTouchedGreen =true; redrawAll(); });
-
-  // ドロワーの開閉
-  const drawer = document.getElementById('drawer');
-  document.getElementById('menuBtn').addEventListener('click', ()=>{
-    drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false');
-    document.documentElement.classList.add('no-hscroll'); document.body.classList.add('no-hscroll');
-  });
-  document.getElementById('drawerClose').addEventListener('click', ()=>{
-    drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true');
-    document.documentElement.classList.remove('no-hscroll'); document.body.classList.remove('no-hscroll');
-  });
-
-  // Tips（省略せず移植）
-  const tipBackdrop=document.getElementById('tipBackdrop');
-  const tipBox=document.getElementById('tipBox');
-  const tipHtml = `
-    <span class="close" id="tipClose">×</span>
-    <h4><span class="tag tag-urgent">交換必須</span></h4>
-      <ul>
-        <li>最優先の交換対象ポート！中心地の駅周辺は当日交換必須</li>
-        <li>ＡＴ異常や長期電池切れ車両（ポート外含む）を厳選表示</li>
-        <li>表示定義「交換比重 6以上」または「交換台数 3台以上」</li>
-      </ul>
-      <h4><span class="tag tag-watch-yellow">交換可能</span></h4>
-      <ul>
-        <li>交換可能ポートは基本的に交換必須「40件未満」で巡回</li>
-        <li>但し「交換台数 4台以上」なら交換必須ポートの導線付近に限り現場判断で効率よく巡回をお願いいたします</li>
-        <li>交換必須「40件以上」なら起動時に☑チェックなし</li>
-        <li>表示定義「交換比重 5」または「交換台数 2台以上」</li>
-      </ul>
-      <h4><span class="tag tag-watch-green">経過観測</span></h4>
-      <ul>
-        <li>経過観測は巡回不要、起動時に標準で☑チェックなし</li>
-        <li>表示定義「交換台数 2台」</li>
-      </ul>`;
-  
-  document.getElementById('tipAll').addEventListener('click', ()=>{
-    tipBox.innerHTML=tipHtml; tipBackdrop.style.display='block'; tipBox.style.display='block';
-    document.getElementById('tipClose')?.addEventListener('click', closeTips);
-  });
-  function closeTips(){ tipBackdrop.style.display='none'; tipBox.style.display='none'; }
-  tipBackdrop.addEventListener('click', closeTips);
-  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeTips(); });
-
-  // マップ以外のピンチズーム/ctrl+wheel抑止
-  document.addEventListener('gesturestart', e=>{ if(!e.target.closest('#map')) e.preventDefault(); }, {passive:false});
-  document.addEventListener('wheel', e=>{ if(e.ctrlKey && !e.target.closest('#map')) e.preventDefault(); }, {passive:false});
-
-  // 一覧：ヘッダーと検索の紐付け
-  bindSortHeaders();
-  bindSearch();
-
-  // データ初回ロード（error.json にも対応）
-  loadInitialData();
-
-  // ポーリング：差分あれば更新ボタンを出す
-  startPolling((txt)=>{
-    if (txt !== lastDataJsonText) {
-      refreshBtn.style.display='inline-block';
-      refreshBadge.style.display='inline-block';
-      lastDataJsonText = txt;
-    }
-  });
-
-  // 更新ボタンクリックで再描画（中心とズームを維持）
-  refreshBtn.addEventListener('click', async ()=>{
-    try{
-      const { center, zoom } = getCenterZoom();
-      const data = JSON.parse(lastDataJsonText);
-      classified = classify(data.items);
-      setTableData(classified);
-      drawMarkers(classified, viewFilter());
-      setCenterZoom(center, zoom);
-      updateTime.textContent = latestUpdate(data.items);
-    }finally{
-      refreshBadge.style.display='none';
-      refreshBtn.style.display='none';
-    }
-  });
-
-// ==== 現在地（起動時に一度取得＋ボタンで追従ON） ==========================
-import { getMap } from './map.js';
-
+/*───────────────────────────────────────────────
+  現在地マーカー＆追従
+───────────────────────────────────────────────*/
 let meMarker = null;
 let meCircle = null;
 let watchId = null;
@@ -224,7 +127,7 @@ function showOrUpdateMe(lat,lng,acc){
   }
 }
 
-/** 起動時に一度だけ現在地を取得して表示（フォローは開始しない） */
+/* 起動時に一度だけ現在地を表示（パン＋ズーム付き） */
 function showMyLocationOnce({ pan=true, targetZoom=15 } = {}){
   if(!('geolocation' in navigator)) return;
   navigator.geolocation.getCurrentPosition(
@@ -242,7 +145,7 @@ function showMyLocationOnce({ pan=true, targetZoom=15 } = {}){
   );
 }
 
-/** ボタンタップで追従を開始（以降、移動に合わせてパンする） */
+/* 追従開始 */
 function startFollow(){
   if(!('geolocation' in navigator)){ alert('位置情報が利用できません'); return; }
   following = true; updateFollowIcon();
@@ -260,15 +163,105 @@ function startFollow(){
     { enableHighAccuracy:true, maximumAge:5000 }
   );
 }
-
 btnLocate.addEventListener('click', startFollow);
 
-// フォロー中にユーザーが操作したらフォロー解除
-(function bindMapStopFollow(){
+/* ユーザーがマップ操作したら追従解除 */
+function bindMapStopFollow(){
   const MAP = getMap();
   if (!MAP) return;
   MAP.on('dragstart', ()=>{ if (following){ following=false; updateFollowIcon(); stopWatch(); }});
   MAP.on('zoomstart', ()=>{ if (following){ following=false; updateFollowIcon(); stopWatch(); }});
-})();
+}
 
+/*───────────────────────────────────────────────
+  初期化処理（完全版）
+───────────────────────────────────────────────*/
+async function init(){
+  try {
+    // 地図初期化
+    initMap();
+    bindMapStopFollow();
+
+    // 起動時に現在地を一度表示
+    showMyLocationOnce({ pan:true, targetZoom:15 });
+
+    // チェックイベント
+    chkYellow.addEventListener('change', ()=>{ userTouchedYellow=true; redrawAll(); });
+    chkGreen .addEventListener('change', ()=>{ userTouchedGreen =true; redrawAll(); });
+
+    // ドロワー
+    const drawer = document.getElementById('drawer');
+    document.getElementById('menuBtn').addEventListener('click', ()=>{
+      drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false');
+      document.documentElement.classList.add('no-hscroll'); document.body.classList.add('no-hscroll');
+    });
+    document.getElementById('drawerClose').addEventListener('click', ()=>{
+      drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true');
+      document.documentElement.classList.remove('no-hscroll'); document.body.classList.remove('no-hscroll');
+    });
+
+    // Tips
+    const tipBackdrop=document.getElementById('tipBackdrop');
+    const tipBox=document.getElementById('tipBox');
+    const tipHtml = `
+      <span class="close" id="tipClose">×</span>
+      <h4><span class="tag tag-urgent">交換必須</span></h4>
+        <ul><li>最優先の交換対象ポート！中心地の駅周辺は当日交換必須</li>
+        <li>表示定義「交換比重 6以上」または「交換台数 3台以上」</li></ul>
+      <h4><span class="tag tag-watch-yellow">交換可能</span></h4>
+        <ul><li>交換必須「40件以上」なら起動時☑なし</li>
+        <li>表示定義「交換比重 5」または「交換台数 2台以上」</li></ul>
+      <h4><span class="tag tag-watch-green">経過観測</span></h4>
+        <ul><li>経過観測は巡回不要、標準で☑なし</li></ul>`;
+    document.getElementById('tipAll').addEventListener('click', ()=>{
+      tipBox.innerHTML=tipHtml; tipBackdrop.style.display='block'; tipBox.style.display='block';
+      document.getElementById('tipClose')?.addEventListener('click', closeTips);
+    });
+    function closeTips(){ tipBackdrop.style.display='none'; tipBox.style.display='none'; }
+    tipBackdrop.addEventListener('click', closeTips);
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeTips(); });
+
+    // ズーム抑止
+    document.addEventListener('gesturestart', e=>{ if(!e.target.closest('#map')) e.preventDefault(); }, {passive:false});
+    document.addEventListener('wheel', e=>{ if(e.ctrlKey && !e.target.closest('#map')) e.preventDefault(); }, {passive:false});
+
+    // 一覧関連
+    bindSortHeaders();
+    bindSearch();
+
+    // 初回ロード
+    await loadInitialData();
+
+    // ポーリング
+    startPolling((txt)=>{
+      if (txt !== lastDataJsonText) {
+        refreshBtn.style.display='inline-block';
+        refreshBadge.style.display='inline-block';
+        lastDataJsonText = txt;
+      }
+    });
+
+    // 更新ボタン
+    refreshBtn.addEventListener('click', async ()=>{
+      try{
+        const { center, zoom } = getCenterZoom();
+        const data = JSON.parse(lastDataJsonText);
+        classified = classify(data.items);
+        setTableData(classified);
+        drawMarkers(classified, viewFilter());
+        setCenterZoom(center, zoom);
+        updateTime.textContent = latestUpdate(data.items);
+      }finally{
+        refreshBadge.style.display='none';
+        refreshBtn.style.display='none';
+      }
+    });
+
+  } catch(e) {
+    console.error("init中のエラー:", e);
+    showError("初期化中に問題が発生しました。開発者に確認してください。");
+  }
+}
+
+/*───────────────────────────────────────────────*/
 init();
