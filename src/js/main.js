@@ -231,13 +231,23 @@ async function init(){
     const tipHtml = `
       <span class="close" id="tipClose">×</span>
       <h4><span class="tag tag-urgent">交換必須</span></h4>
-        <ul><li>最優先の交換対象ポート！中心地の駅周辺は当日交換必須</li>
-        <li>表示定義「交換比重 6以上」または「交換台数 3台以上」</li></ul>
-      <h4><span class="tag tag-watch-yellow">交換可能</span></h4>
-        <ul><li>交換必須「40件以上」なら起動時☑なし</li>
-        <li>表示定義「交換比重 5」または「交換台数 2台以上」</li></ul>
-      <h4><span class="tag tag-watch-green">経過観測</span></h4>
-        <ul><li>経過観測は巡回不要、標準で☑なし</li></ul>`;
+    <ul>
+      <li>最優先の交換対象ポート！中心地の駅周辺は当日交換必須</li>
+      <li>ＡＴ異常や長期電池切れ車両（ポート外含む）を厳選表示</li>
+      <li>表示定義「電池比重 6以上」または「交換目安 3台以上」</li>
+    </ul>
+    <h4><span class="tag tag-watch-yellow">交換可能</span></h4>
+    <ul>
+      <li>交換可能ポートは基本的に交換必須「40件未満」で巡回</li>
+      <li>但し交換必須ポートの導線付近に限り現場判断で効率よく巡回をお願いいたします</li>
+      <li>交換必須「40件以上」なら起動時に☑チェックなし</li>
+      <li>表示定義「電池比重 5」または「交換目安 2台以上」</li>
+    </ul>
+    <h4><span class="tag tag-watch-green">経過観測</span></h4>
+    <ul>
+      <li>経過観測は巡回不要、起動時に標準で☑チェックなし</li>
+      <li>表示定義「交換目安 2台」</li>
+    </ul>`;
     document.getElementById('tipAll').addEventListener('click', ()=>{
       tipBox.innerHTML=tipHtml; tipBackdrop.style.display='block'; tipBox.style.display='block';
       document.getElementById('tipClose')?.addEventListener('click', closeTips);
