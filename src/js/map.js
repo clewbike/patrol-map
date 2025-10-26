@@ -6,14 +6,30 @@ let markersLayer;
 const markerByKey = new Map();
 
 /** Map生成 */
+// ★ Jawg Sunny（ラスタ）＋ 京都だけ見える設定
+const KYOTO_BOUNDS = L.latLngBounds([34.85,135.60],[35.15,135.90]);
+const JAWG_ACCESS_TOKEN = 'YOUR_JAWG_TOKEN'; // ダッシュボードの token を入れる
+const jawgSunnyUrl = 'https://tile.jawg.io/jawg-sunny/{z}/{x}/{y}{r}.png?access-token={accessToken}';
+const jawgOpts = {
+  minZoom: 11,
+  maxZoom: 18,
+  accessToken: blVUDBogpZ9OqWEruBlliLabQ5aRC2lhIqEblqr6syJyybrzR5W9IJOdfV60Ct3I,
+  attribution:
+    '<a href="https://jawg.io" target="_blank" rel="noopener">© <b>Jawg</b> Maps</a> ' +
+    '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>'
+};
+
 export function initMap() {
-  MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 13);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-    { maxZoom:19, subdomains:'abcd' }).addTo(MAP);
+  MAP = L.map('map', {
+    zoomControl:false,
+    maxBounds: KYOTO_BOUNDS,
+    maxBoundsViscosity: 0.8
+  }).setView([35.0116,135.7681], 13);  // ← 初期ズームを+1に
+
+  L.tileLayer(jawgSunnyUrl, jawgOpts).addTo(MAP);
   markersLayer = L.layerGroup().addTo(MAP);
   return MAP;
 }
-
 /** main.jsから利用する用 */
 export function getMap() {
   return MAP;
