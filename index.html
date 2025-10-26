@@ -104,6 +104,15 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
 }
 #menuBtn path{fill:#444;} #menuBtn:hover path{fill:#000;}
 
+/* タグ（ピンのラベルやTips見出しで利用） */
+.tag{
+  display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:bold; color:#fff; line-height:1;
+  vertical-align:middle;
+}
+.tag-urgent{background:#e60026;}
+.tag-watch-yellow{background:#ff8c00;}
+.tag-watch-green{background:#6fa86f;}
+
 /* ── ドロワー（一覧） ─────────────────────── */
 #drawer{
   position:absolute; top:0; right:0; bottom:0; width:min(620px,94vw);
@@ -417,10 +426,20 @@ MAP.on('zoomstart', ()=>{ if(following){ following=false; updateFollowIcon(); st
 const drawer      = document.getElementById('drawer');
 const menuBtn     = document.getElementById('menuBtn');
 const drawerClose = document.getElementById('drawerClose');
-menuBtn.addEventListener('click', ()=>{ drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false'); document.documentElement.classList.add('no-hscroll'); document.body.classList.add('no-hscroll'); });
-drawerClose.addEventListener('click', ()=>{ drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); document.documentElement.classList.remove('no-hscroll'); document.body.classList.remove('no-hscroll'); });
+menuBtn.addEventListener('click', ()=>{
+  drawer.classList.add('open');
+  drawer.setAttribute('aria-hidden','false');
+  document.documentElement.classList.add('no-hscroll');
+  document.body.classList.add('no-hscroll');
+});
+drawerClose.addEventListener('click', ()=>{
+  drawer.classList.remove('open');
+  drawer.setAttribute('aria-hidden','true');
+  document.documentElement.classList.remove('no-hscroll');
+  document.body.classList.remove('no-hscroll');
+});
 
-/* テーブル生成・検索・ソート・行クリック（パンのみ／ズーム固定） */
+/* ── テーブル生成・検索・ソート・行クリック（パンのみ／ズーム固定） ── */
 const qGlobal = document.getElementById('qGlobal');
 const tbody   = document.getElementById('portsTbody');
 let sortKey='name', sortDir=0, tableRows=[];
@@ -449,7 +468,7 @@ function renderTable(){
   tbody.innerHTML = rows.map(r=>`<tr data-lat="${r.lat}" data-lng="${r.lng}" data-name="${r.name}">
     <td>${r.name}</td><td>${r.weight}</td><td>${r.count}</td></tr>`).join('');
 
-  // 行クリック → パンのみ（ズームは変えない）＆ポップアップ開く
+  // 行クリック → パンのみ（ズーム不変）＋ポップアップ表示
   Array.from(tbody.querySelectorAll('tr')).forEach(tr=>{
     tr.addEventListener('click', ()=>{
       const lat = parseFloat(tr.dataset.lat), lng = parseFloat(tr.dataset.lng), name = tr.dataset.name;
@@ -472,7 +491,7 @@ document.getElementById('th-weight').addEventListener('click', ()=>setSort('weig
 document.getElementById('th-count' ).addEventListener('click', ()=>setSort('count'));
 qGlobal.addEventListener('input', renderTable);
 
-/* ── Tips内容 ── */
+/* ── Tips内容（タグ付き見出し） ── */
 const tipBackdrop=document.getElementById('tipBackdrop');
 const tipBox=document.getElementById('tipBox');
 const tipAll=document.getElementById('tipAll');
