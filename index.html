@@ -1,17 +1,36 @@
 <!doctype html>
 <html lang="ja">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>電池交換マップ</title>
-<meta name="robots" content="noindex,nofollow">
+  
+  <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>電池交換マップ</title>
+  <meta name="robots" content="noindex,nofollow">
 
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="./manifest.json">
+  
+  <!-- ファビコン（ブラウザ用） -->
+  <link rel="icon" href="./icons/favicon.ico" type="image/x-icon">
+  
+  <!-- Android Chrome用テーマカラー -->
+  <meta name="theme-color" content="#2c7be5">
+  
+  <!-- iPhone (Safari) ホーム追加アイコン -->
+  <link rel="apple-touch-icon" href="./icons/apple-icon.png">
+  
+  <!-- Webアプリ名（iPhone用） -->
+  <meta name="apple-mobile-web-app-title" content="電池交換マップ">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
   
   <link rel="stylesheet" href="./src/css/app.css">
   </head>
+
   <body>
     <div id="map"></div>
 
