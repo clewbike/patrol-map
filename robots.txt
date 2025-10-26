@@ -1,2 +1,3 @@
+# robots.txt for patrol-map
 User-agent: *
-Disallow: /
+Disallow:
