@@ -14,7 +14,10 @@ export function initMap() {
   return MAP;
 }
 
-export function getMap() { return MAP; }
+/** main.jsから利用する用 */
+export function getMap() {
+  return MAP;
+}
 
 /** 一意キー */
 export function markerKey(it) { return `${it.lat},${it.lng},${it.name}`; }
