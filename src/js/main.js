@@ -103,6 +103,11 @@ function init(){
   // Map
   initMap();
 
+  // ★ 起動時に一度だけ現在地を表示（パン＆ズーム付き）
+  showMyLocationOnce({ pan:true, targetZoom:15 });
+
+  // …以下、既存の処理（チェック変更・ドロワー・Tips・テーブル等）
+
   // チェック変更で再描画（地図のみ影響）
   chkYellow.addEventListener('change', ()=>{ userTouchedYellow=true; redrawAll(); });
   chkGreen .addEventListener('change', ()=>{ userTouchedGreen =true; redrawAll(); });
