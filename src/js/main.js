@@ -47,14 +47,6 @@ async function loadInitialData() {
     drawMarkers(classified, viewFilter());
     updateTime.textContent = latestUpdate(json.items);
 
-    // （任意の保険）カウンタを再計算して反映
-    const totals = {
-      urgent: classified.filter(x => x.s === 'urgent').length,
-      yellow: classified.filter(x => x.s === 'watch-yellow').length,
-      green : classified.filter(x => x.s === 'watch-green').length,
-    };
-    setCounts(totals);
-
     return true;
   } catch (e) {
     console.error(e);
