@@ -451,26 +451,31 @@ drawerClose.addEventListener('click', ()=>{
 });
 
 /* ──────────────────────────────────────────────
-   📊 一覧テーブル（ドロワー）制御
-   - JSONデータをテーブル用に整形
-   - 検索・ソート・クリックでマップ連動
+   📊 一覧テーブル（検索・ソート・クリック）
 ────────────────────────────────────────────── */
 
-// 🔍 検索ボックスとテーブル領域の参照を取得
 const qGlobal = document.getElementById('qGlobal');
 const tbody   = document.getElementById('portsTbody');
 
-// ⚙️ ソート状態の初期化
-let sortKey = 'weight';  // 並び替え基準（初期は「電池比重」）
-let sortDir = -1;        // 降順（大きい→小さい）
-let tableRows = [];      // 一覧データのキャッシュ（JSONから変換して保持）
+/* 方向は 'asc' / 'desc' の文字列で管理して分かりやすく */
+let sortKey = 'weight';   // 初期は「電池比重」
+let sortDir = 'desc';     // 初期は降順
+let tableRows = [];
 
-/**
- * 🧩 buildTable(items)
- * JSON で取得したデータをテーブル用に整形して保存する。
- * 呼び出し元：render()（マップ描画完了後）
- */
-function buildTable(items) {
+/* ユーティリティ：数値比較（方向つき） */
+function cmpNum(a, b, dir) {
+  return dir === 'asc' ? (a - b) : (b - a);
+}
+
+/* ソートアイコン更新を関数化 */
+function updateSortIndicators() {
+  document.getElementById('sort-name'  ).textContent   = sortKey==='name'   ? (sortDir==='asc'?'↑':'↓') : '⇅';
+  document.getElementById('sort-weight').textContent = sortKey==='weight' ? (sortDir==='asc'?'↑':'↓') : '⇅';
+  document.getElementById('sort-count' ).textContent  = sortKey==='count'  ? (sortDir==='asc'?'↑':'↓') : '⇅';
+}
+
+/* JSON → 一覧データ整形（初期状態の並びと矢印もここでセット） */
+function buildTable(items){
   tableRows = (items || []).map(r => ({
     name: r.name,
     weight: Number(r.weight) || 0,
@@ -480,49 +485,34 @@ function buildTable(items) {
     s: r.s ?? null
   }));
 
-  // 初期状態は「電池比重 → 台数」の降順で並び替え
+  // 初期表示：電池比重→台数の「降順」
   sortKey = 'weight';
-  sortDir = -1;
-
-  // ソートアイコンを初期化（矢印を↓に）
-  document.getElementById('sort-name'  ).textContent = '⇅';
-  document.getElementById('sort-weight').textContent = '↓';
-  document.getElementById('sort-count' ).textContent = '⇅';
-
-  // 表を描画
+  sortDir = 'desc';
+  updateSortIndicators();
   renderTable();
 }
 
-/**
- * 🪄 renderTable()
- * - 現在のソート・検索条件に基づいて一覧を描画
- * - 各行クリックでマップ上の該当ポートに移動
- */
-function renderTable() {
+/* 現在の検索・ソート状態で tbody を再描画 */
+function renderTable(){
   const q = qGlobal.value.trim().toLowerCase();
 
-  // 🔍 検索対象は「ポート名」のみ
-  let rows = tableRows.filter(r =>
-    !q || r.name.toLowerCase().includes(q)
-  );
+  // 🔍 検索はポート名のみ
+  let rows = tableRows.filter(r => !q || r.name.toLowerCase().includes(q));
 
-  // 🔽 並び替え（複合ソート対応）
+  // 🔽 ソート（複合キー対応）
   rows.sort((a, b) => {
     if (sortKey === 'weight') {
-      // 電池比重降順 → 同値なら台数降順
-      if (a.weight !== b.weight) return sortDir * (b.weight - a.weight);
-      return sortDir * (b.count - a.count);
+      const p = cmpNum(a.weight, b.weight, sortDir);
+      return p !== 0 ? p : cmpNum(a.count, b.count, sortDir);
     }
     if (sortKey === 'count') {
-      // 台数降順 → 同値なら比重降順
-      if (a.count !== b.count) return sortDir * (b.count - a.count);
-      return sortDir * (b.weight - a.weight);
+      const p = cmpNum(a.count, b.count, sortDir);
+      return p !== 0 ? p : cmpNum(a.weight, b.weight, sortDir);
     }
-    // 名前ソート（文字列）
-    const av = a.name, bv = b.name;
-    if (av < bv) return sortDir === -1 ? 1 : -1;
-    if (av > bv) return sortDir === -1 ? -1 : 1;
-    return 0;
+    // name は文字列比較
+    return sortDir === 'asc'
+      ? a.name.localeCompare(b.name)
+      : b.name.localeCompare(a.name);
   });
 
   // 🧱 HTML生成
@@ -531,7 +521,7 @@ function renderTable() {
       <td>${r.name}</td><td>${r.weight}</td><td>${r.count}</td>
     </tr>`).join('');
 
-  // 🖱 行クリックでマップ移動＆ポップアップ表示
+  // 🖱 行クリック → マップへパン & ポップアップ
   Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
     tr.addEventListener('click', () => {
       const lat  = parseFloat(tr.dataset.lat);
@@ -545,35 +535,24 @@ function renderTable() {
   });
 }
 
-/**
- * 🔁 setSort(key)
- * 列ヘッダークリック時にソート基準を変更。
- * 同じ列をクリックすると昇順／降順をトグル。
- */
-function setSort(k) {
+/* 列ヘッダークリックでソート切り替え */
+function setSort(k){
   if (sortKey !== k) {
     sortKey = k;
-    sortDir = -1; // 新しい列は降順スタート
+    sortDir = 'desc';            // 新しい列は降順スタート
   } else {
-    sortDir = (sortDir === 1 ? -1 : 1);
+    sortDir = (sortDir === 'asc') ? 'desc' : 'asc';  // トグル
   }
-
-  // ソートアイコンを更新
-  document.getElementById('sort-name'  ).textContent   = k==='name'   ? (sortDir===1?'↑':'↓') : '⇅';
-  document.getElementById('sort-weight').textContent = k==='weight' ? (sortDir===1?'↑':'↓') : '⇅';
-  document.getElementById('sort-count' ).textContent  = k==='count'  ? (sortDir===1?'↑':'↓') : '⇅';
-
+  updateSortIndicators();
   renderTable();
 }
 
-// ヘッダークリックでソート切り替え
+/* イベント */
 document.getElementById('th-name'  ).addEventListener('click', () => setSort('name'));
 document.getElementById('th-weight').addEventListener('click', () => setSort('weight'));
 document.getElementById('th-count' ).addEventListener('click', () => setSort('count'));
-
-// 入力時にリアルタイム検索
-qGlobal.addEventListener('input', renderTable);
-  
+qGlobal.addEventListener('input', renderTable);　// 入力時にリアルタイム検索
+ 
 /* ── Tips内容 ── */
 const tipBackdrop=document.getElementById('tipBackdrop');
 const tipBox=document.getElementById('tipBox');
