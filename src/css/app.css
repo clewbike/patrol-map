@@ -1,1 +1,166 @@
+:root{
+  --ui-font:"Segoe UI","Helvetica Neue",sans-serif;
+  --drawer-head-h:44px;
+  --links-h:44px;  /* フォーム2行ぶんの固定高さ */
+  --tools-h:40px;  /* 検索バーの固定高さ */
+}
+html,body{height:100%;margin:0;background:#f7f7f7;font-family:var(--ui-font);}
+html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
+#map{height:100%;}
+#legend-top,#hud,#menuBtn,#drawer,#refreshBtn,#locateFab,#tipBackdrop,#tipBox{touch-action:pan-y;}
 
+/* 左上：凡例 */
+#legend-top{
+  position:absolute; top:8px; left:8px; z-index:1000; user-select:none;
+  background:rgba(255,255,255,.96);
+  padding:6px 7px; border-radius:9px;
+  font:12px/1.35 var(--ui-font);
+  box-shadow:0 1px 6px rgba(0,0,0,.18);
+  width:145px;
+}
+.legend-row{display:grid; grid-template-columns:auto 24px 18px; align-items:center; column-gap:4px; margin:1px 0;}
+.legend-left{display:flex; align-items:center; gap:4px;}
+.legend-dot{font-weight:700;}
+.legend-count{text-align:left; font-weight:700; font-variant-numeric:tabular-nums;}
+.legend-note-wrap{display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:4px;}
+.legend-note{font-size:10.8px; color:#b00020; line-height:1.35; white-space:pre-line;}
+.tip-btn{
+  width:16px; height:16px; border-radius:50%;
+  background:#eef3ff; color:#2c7be5; border:0; cursor:pointer;
+  font:700 11px/16px system-ui; display:flex; align-items:center; justify-content:center;
+}
+.tip-btn:active{transform:scale(.95);}
+
+/* Tips */
+#tipBackdrop{position:fixed; inset:0; background:rgba(0,0,0,.25); display:none; z-index:1100;}
+#tipBox{
+  position:absolute; left:10px; right:10px; bottom:10px; z-index:1110;
+  background:#1f1f1fe6; color:#fff; padding:10px 12px; border-radius:10px;
+  font:12.5px/1.6 var(--ui-font); box-shadow:0 4px 14px rgba(0,0,0,.28); display:none; max-width:520px;
+}
+#tipBox h4{margin:6px 0; font-size:12.5px; display:flex; align-items:center; gap:8px;}
+#tipBox ul{margin:0 0 8px 1.2em; padding:0;}
+#tipBox li{margin:2px 0;}
+#tipBox .close{float:right; margin-left:8px; cursor:pointer; color:#ddd; font-weight:700;}
+
+/* 右下：更新時刻＋クレジット */
+#hud{
+  position:absolute; right:4px; bottom:4px; z-index:1000;
+  display:flex; flex-direction:column; align-items:flex-end; gap:4px;
+  pointer-events:none;
+}
+#legend{
+  background:rgba(0,0,0,.78); color:#fff;
+  padding:5px 10px; border-radius:6px;
+  font:12px/1.5 var(--ui-font);
+  box-shadow:0 1px 3px rgba(0,0,0,.3);
+  pointer-events:auto;
+}
+#credit{font:10px/1 var(--ui-font); color:#ddd; pointer-events:auto;}
+#credit a{color:#ddd; text-decoration:none;}
+
+/* 右下：未読あり更新ボタン */
+#refreshBtn{
+  position:absolute; right:8px; bottom:120px; z-index:1000;
+  background:#fff; border:1px solid #ccc; border-radius:999px;
+  padding:8px 12px; font:12px var(--ui-font); cursor:pointer; display:none;
+  box-shadow:0 2px 8px rgba(0,0,0,.25);
+}
+#refreshBadge{display:none; margin-left:8px; width:8px; height:8px; border-radius:50%; background:#e60026; vertical-align:middle;}
+
+/* 現在地ボタン */
+#locateFab{position:absolute; right:8px; bottom:64px; z-index:1000; pointer-events:auto;}
+.fab-btn{
+  width:50px; height:50px; border-radius:50%; border:none; cursor:pointer; background:#fff;
+  box-shadow:0 4px 10px rgba(0,0,0,.25); display:flex; align-items:center; justify-content:center;
+}
+.fab-btn svg{width:24px; height:24px;}
+.following svg{fill:#2c7be5;} .idle svg{fill:#777;}
+.me-dot{
+  width:12px; height:12px; border-radius:50%;
+  background:#2c7be5; border:2px solid #fff; box-shadow:0 0 6px 2px rgba(44,123,229,.5);
+  pointer-events:none;
+}
+
+/* ハンバーガー */
+#menuBtn{
+  position:absolute; top:8px; right:8px; z-index:1000;
+  width:40px; height:40px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  background:#fff; border:1px solid #ddd; cursor:pointer;
+  box-shadow:0 2px 6px rgba(0,0,0,.15);
+}
+#menuBtn path{fill:#444;} #menuBtn:hover path{fill:#000;}
+
+/* ドロワー（一覧） */
+#drawer{
+  position:absolute; top:0; right:0; bottom:0; width:min(620px,94vw);
+  background:#fff; z-index:1200; box-shadow:-6px 0 16px rgba(0,0,0,.25);
+  transform:translateX(100%); transition:transform .25s ease;
+  display:flex; flex-direction:column;
+  font-family:var(--ui-font);
+  touch-action:pan-y; overflow-x:hidden !important;
+}
+#drawer.open{transform:translateX(0);}
+#drawer *{touch-action:inherit;}
+.drawer-head{
+  position:sticky; top:0; z-index:3;
+  display:flex; align-items:center; justify-content:space-between;
+  height:var(--drawer-head-h); padding:10px 12px; border-bottom:1px solid #eee; background:#fff;
+}
+.drawer-close{border:0; background:transparent; font-size:18px; cursor:pointer; color:#333;}
+.drawer-body{
+  padding:0 12px 10px;
+  overflow-y:auto; overflow-x:hidden !important;
+  touch-action:pan-y; overscroll-behavior-x:none;
+}
+
+/* フォームリンク（固定） */
+.links-block{
+  position:sticky; top:0; z-index:4;
+  background:#fff; border-bottom:1px solid #e5e5e5;
+  height:var(--links-h); display:flex; align-items:center;
+  gap:12px; padding:0; margin:0;
+  font-size:12px; line-height:1.4;
+}
+.links-block a{color:#000; text-decoration:underline; white-space:nowrap;}
+
+/* 検索バー（固定） + iOSズーム防止 */
+.tbl-tools{
+  position:sticky; top:var(--links-h); z-index:4;
+  display:flex; gap:8px; align-items:center;
+  height:var(--tools-h); padding:0; margin:0; background:#fff;
+  border-bottom:1px solid #e5e5e5;
+}
+.tbl-tools input[type="text"]{
+  border:1px solid #ccc; border-radius:6px; padding:7px 10px;
+  font-size:16px; line-height:1.2; width:260px; font-family:var(--ui-font);
+}
+
+/* テーブル（ヘッダ固定） */
+.tbl{
+  width:100%; margin:0; border-collapse:separate; border-spacing:0;
+  font-size:12px; table-layout:fixed; font-family:var(--ui-font);
+}
+.tbl th,.tbl td{padding:6px 8px; border-bottom:1px solid #eee;}
+.tbl th{
+  position:sticky;
+  top:calc(var(--links-h) + var(--tools-h) - 1px);
+  z-index:3; background:#fafafa; border-bottom:1px solid #e5e5e5; cursor:pointer; user-select:none;
+}
+.tbl .col-name{width:50%;}
+.tbl .col-weight{width:24%;}
+.tbl .col-count{width:26%;}
+.tbl th .sort{font-size:11px; opacity:.7; margin-left:4px; vertical-align:middle;}
+#portsTbody tr{cursor:pointer;}
+#portsTbody tr:hover{background:#f7faff;}
+
+/* Leaflet 既定コントロール非表示 */
+.leaflet-control-zoom, .leaflet-control-attribution{display:none !important;}
+.leaflet-div-icon{background:transparent !important; border:none !important;}
+
+/* バッジ（ポップアップ/Tip） */
+.tag{display:inline-block; padding:2px 8px; border-radius:999px; font:11px/1 var(--ui-font); font-weight:bold; color:#fff;}
+.tag-urgent{background:#e60026;}
+.tag-watch-yellow{background:#ff8c00;}
+.tag-watch-green{background:#6fa86f;}
