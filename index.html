@@ -450,13 +450,10 @@ const tbody   = document.getElementById('portsTbody');
 let sortKey='name', sortDir=0, tableRows=[];
 
 function buildTable(items){
-  const visible=items.filter(r=>{
-    if(!r.s) return false;
-    if(r.s==='watch-yellow' && !chkYellow.checked) return false;
-    if(r.s==='watch-green'  && !chkGreen.checked)  return false;
-    return true;
-  });
-  tableRows = visible.map(r=>({ name:r.name, weight:+r.weight||0, count:+r.count||0, lat:r.lat, lng:r.lng, s:r.s }));
+  tableRows = (items||[]).map(r=>({
+    name:r.name, weight:+r.weight||0, count:+r.count||0,
+    lat:r.lat, lng:r.lng, s:r.s ?? null
+  }));
   renderTable();
 }
 function renderTable(){
