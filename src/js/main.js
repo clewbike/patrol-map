@@ -186,39 +186,84 @@ function init(){
     }
   });
 
-  // 現在地ボタン（最低限）
-  let meMarker=null, meCircle=null, watchId=null, following=false;
-  const btnLocate=document.getElementById('locateBtn');
-  function updateFollowIcon(){ btnLocate.classList.toggle('following',following); btnLocate.classList.toggle('idle',!following); }
-  function stopWatch(){ if(watchId){ navigator.geolocation.clearWatch(watchId); watchId=null; } }
-  function showOrUpdateMe(lat,lng,acc){
-    const MAP = getMap();  // ← これで既存マップを取得
-    if(!MAP) return;
-  
-    if(!meMarker){
-      const div=L.divIcon({className:'', html:'<div class="me-dot"></div>', iconSize:[16,16], iconAnchor:[8,8]});
-      meMarker=L.marker([lat,lng],{icon:div,interactive:false}).addTo(MAP);
-      meCircle=L.circle([lat,lng],{radius:acc||30,color:'#2c7be5',weight:1,fillColor:'#2c7be5',fillOpacity:0.12,interactive:false}).addTo(MAP);
-    }else{
-      meMarker.setLatLng([lat,lng]);
-      meCircle.setLatLng([lat,lng]).setRadius(acc||30);
-    }
-  }
-  btnLocate.addEventListener('click', ()=>{
-    if(!('geolocation' in navigator)){ alert('位置情報が利用できません'); return; }
-    following=true; updateFollowIcon();
-    stopWatch();
-    watchId=navigator.geolocation.watchPosition(
-      p=>{ const {latitude,longitude,accuracy}=p.coords; showOrUpdateMe(latitude,longitude,accuracy); },
-      err=>{ console.warn('watchPosition error:',err); },
-      { enableHighAccuracy:true, maximumAge:5000 }
-    );
-    navigator.geolocation.getCurrentPosition(
-      pos=>{ const {latitude,longitude,accuracy}=pos.coords; showOrUpdateMe(latitude,longitude,accuracy); },
-      err=>{ alert('現在地を取得できません：'+err.message); },
-      { enableHighAccuracy:true, timeout:10000, maximumAge:5000 }
-    );
-  });
+// ==== 現在地（起動時に一度取得＋ボタンで追従ON） ==========================
+import { getMap } from './map.js';
+
+let meMarker = null;
+let meCircle = null;
+let watchId = null;
+let following = false;
+const btnLocate = document.getElementById('locateBtn');
+
+function updateFollowIcon(){
+  btnLocate.classList.toggle('following', following);
+  btnLocate.classList.toggle('idle', !following);
 }
+function stopWatch(){
+  if (watchId){ navigator.geolocation.clearWatch(watchId); watchId = null; }
+}
+
+function showOrUpdateMe(lat,lng,acc){
+  const MAP = getMap();
+  if(!MAP) return;
+  if(!meMarker){
+    const div = L.divIcon({ className:'', html:'<div class="me-dot"></div>', iconSize:[16,16], iconAnchor:[8,8] });
+    meMarker = L.marker([lat,lng], { icon:div, interactive:false }).addTo(MAP);
+    meCircle = L.circle([lat,lng], {
+      radius:acc||30, color:'#2c7be5', weight:1,
+      fillColor:'#2c7be5', fillOpacity:0.12, interactive:false
+    }).addTo(MAP);
+  }else{
+    meMarker.setLatLng([lat,lng]);
+    meCircle.setLatLng([lat,lng]).setRadius(acc||30);
+  }
+}
+
+/** 起動時に一度だけ現在地を取得して表示（フォローは開始しない） */
+function showMyLocationOnce({ pan=true, targetZoom=15 } = {}){
+  if(!('geolocation' in navigator)) return;
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      const { latitude, longitude, accuracy } = pos.coords;
+      showOrUpdateMe(latitude, longitude, accuracy);
+      const MAP = getMap();
+      if (pan && MAP){
+        if (MAP.getZoom() < targetZoom) MAP.setView([latitude, longitude], targetZoom, { animate:true });
+        else MAP.panTo([latitude, longitude], { animate:true });
+      }
+    },
+    err=>{ console.warn('getCurrentPosition error:', err); },
+    { enableHighAccuracy:true, timeout:10000, maximumAge:5000 }
+  );
+}
+
+/** ボタンタップで追従を開始（以降、移動に合わせてパンする） */
+function startFollow(){
+  if(!('geolocation' in navigator)){ alert('位置情報が利用できません'); return; }
+  following = true; updateFollowIcon();
+  stopWatch();
+  watchId = navigator.geolocation.watchPosition(
+    p=>{
+      const { latitude, longitude, accuracy } = p.coords;
+      showOrUpdateMe(latitude, longitude, accuracy);
+      if (following){
+        const MAP = getMap();
+        if (MAP) MAP.panTo([latitude, longitude], { animate:true });
+      }
+    },
+    err=>{ console.warn('watchPosition error:', err); },
+    { enableHighAccuracy:true, maximumAge:5000 }
+  );
+}
+
+btnLocate.addEventListener('click', startFollow);
+
+// フォロー中にユーザーが操作したらフォロー解除
+(function bindMapStopFollow(){
+  const MAP = getMap();
+  if (!MAP) return;
+  MAP.on('dragstart', ()=>{ if (following){ following=false; updateFollowIcon(); stopWatch(); }});
+  MAP.on('zoomstart', ()=>{ if (following){ following=false; updateFollowIcon(); stopWatch(); }});
+})();
 
 init();
