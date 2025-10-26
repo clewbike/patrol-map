@@ -6,586 +6,94 @@
 <title>電池交換マップ</title>
 <meta name="robots" content="noindex,nofollow">
 
-<!-- Leaflet -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
+  
+  <link rel="stylesheet" href="./src/css/app.css">
+  </head>
+  <body>
+    <div id="map"></div>
 
-<style>
-:root{
-  --ui-font:"Segoe UI","Helvetica Neue",sans-serif;
-  --drawer-head-h:44px;
-  --links-h:44px;  /* フォーム2行ぶんの固定高さ */
-  --tools-h:40px;  /* 検索バーの固定高さ */
-}
-html,body{height:100%;margin:0;background:#f7f7f7;font-family:var(--ui-font);}
-html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
-#map{height:100%;}
-#legend-top,#hud,#menuBtn,#drawer,#refreshBtn,#locateFab,#tipBackdrop,#tipBox{touch-action:pan-y;}
-
-/* ── 左上：凡例 ───────────────────────── */
-#legend-top{
-  position:absolute; top:8px; left:8px; z-index:1000; user-select:none;
-  background:rgba(255,255,255,.96);
-  padding:6px 7px; border-radius:9px;
-  font:12px/1.35 var(--ui-font);
-  box-shadow:0 1px 6px rgba(0,0,0,.18);
-  width:145px;
-}
-.legend-row{display:grid; grid-template-columns:auto 24px 18px; align-items:center; column-gap:4px; margin:1px 0;}
-.legend-left{display:flex; align-items:center; gap:4px;}
-.legend-dot{font-weight:700;}
-.legend-count{text-align:left; font-weight:700; font-variant-numeric:tabular-nums;}
-.legend-note-wrap{display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:4px;}
-.legend-note{font-size:10.8px; color:#b00020; line-height:1.35; white-space:pre-line;}
-.tip-btn{
-  width:16px; height:16px; border-radius:50%;
-  background:#eef3ff; color:#2c7be5; border:0; cursor:pointer;
-  font:700 11px/16px system-ui; display:flex; align-items:center; justify-content:center;
-}
-.tip-btn:active{transform:scale(.95);}
-
-/* ── Tips ───────────────────────────────── */
-#tipBackdrop{position:fixed; inset:0; background:rgba(0,0,0,.25); display:none; z-index:1100;}
-#tipBox{
-  position:absolute; left:10px; right:10px; bottom:10px; z-index:1110;
-  background:#1f1f1fe6; color:#fff; padding:10px 12px; border-radius:10px;
-  font:12.5px/1.6 var(--ui-font); box-shadow:0 4px 14px rgba(0,0,0,.28); display:none; max-width:520px;
-}
-#tipBox h4{margin:6px 0; font-size:12.5px; display:flex; align-items:center; gap:8px;}
-#tipBox ul{margin:0 0 8px 1.2em; padding:0;}
-#tipBox li{margin:2px 0;}
-#tipBox .close{float:right; margin-left:8px; cursor:pointer; color:#ddd; font-weight:700;}
-
-/* ── 右下：更新時刻＋クレジット ────────── */
-#hud{
-  position:absolute; right:4px; bottom:4px; z-index:1000;
-  display:flex; flex-direction:column; align-items:flex-end; gap:4px;
-  pointer-events:none;
-}
-#legend{
-  background:rgba(0,0,0,.78); color:#fff;
-  padding:5px 10px; border-radius:6px;
-  font:12px/1.5 var(--ui-font);
-  box-shadow:0 1px 3px rgba(0,0,0,.3);
-  pointer-events:auto;
-}
-#credit{font:10px/1 var(--ui-font); color:#ddd; pointer-events:auto;}
-#credit a{color:#ddd; text-decoration:none;}
-
-/* ── 右下：未読あり更新ボタン ─────────── */
-#refreshBtn{
-  position:absolute; right:8px; bottom:120px; z-index:1000;
-  background:#fff; border:1px solid #ccc; border-radius:999px;
-  padding:8px 12px; font:12px var(--ui-font); cursor:pointer; display:none;
-  box-shadow:0 2px 8px rgba(0,0,0,.25);
-}
-#refreshBadge{display:none; margin-left:8px; width:8px; height:8px; border-radius:50%; background:#e60026; vertical-align:middle;}
-
-/* ── 現在地ボタン ───────────────────── */
-#locateFab{position:absolute; right:8px; bottom:64px; z-index:1000; pointer-events:auto;}
-.fab-btn{
-  width:50px; height:50px; border-radius:50%; border:none; cursor:pointer; background:#fff;
-  box-shadow:0 4px 10px rgba(0,0,0,.25); display:flex; align-items:center; justify-content:center;
-}
-.fab-btn svg{width:24px; height:24px;}
-.following svg{fill:#2c7be5;} .idle svg{fill:#777;}
-.me-dot{
-  width:12px; height:12px; border-radius:50%;
-  background:#2c7be5; border:2px solid #fff; box-shadow:0 0 6px 2px rgba(44,123,229,.5);
-  pointer-events:none;
-}
-
-/* ── ハンバーガー ───────────────────── */
-#menuBtn{
-  position:absolute; top:8px; right:8px; z-index:1000;
-  width:40px; height:40px; border-radius:10px;
-  display:flex; align-items:center; justify-content:center;
-  background:#fff; border:1px solid #ddd; cursor:pointer;
-  box-shadow:0 2px 6px rgba(0,0,0,.15);
-}
-#menuBtn path{fill:#444;} #menuBtn:hover path{fill:#000;}
-
-/* ── ドロワー（一覧） ───────────────── */
-#drawer{
-  position:absolute; top:0; right:0; bottom:0; width:min(620px,94vw);
-  background:#fff; z-index:1200; box-shadow:-6px 0 16px rgba(0,0,0,.25);
-  transform:translateX(100%); transition:transform .25s ease;
-  display:flex; flex-direction:column;
-  font-family:var(--ui-font);
-  touch-action:pan-y; overflow-x:hidden !important;
-}
-#drawer.open{transform:translateX(0);}
-#drawer *{touch-action:inherit;}
-.drawer-head{
-  position:sticky; top:0; z-index:3;
-  display:flex; align-items:center; justify-content:space-between;
-  height:var(--drawer-head-h); padding:10px 12px; border-bottom:1px solid #eee; background:#fff;
-}
-.drawer-close{border:0; background:transparent; font-size:18px; cursor:pointer; color:#333;}
-.drawer-body{
-  padding:0 12px 10px;
-  overflow-y:auto; overflow-x:hidden !important;
-  touch-action:pan-y; overscroll-behavior-x:none;
-}
-
-/* ▼ フォームリンク（固定 1段扱い・実体2行）
-   ★ 修正：top を 0 に（ヘッダー分のオフセットを削除） */
-.links-block{
-  position:sticky; top:0; z-index:4;        /* ← 変更 */
-  background:#fff; border-bottom:1px solid #e5e5e5;
-  height:var(--links-h); display:flex; align-items:center;
-  gap:12px; padding:0; margin:0;
-  font-size:12px; line-height:1.4;
-}
-.links-block a{color:#000; text-decoration:underline; white-space:nowrap;}
-
-/* ▼ 検索バー（固定）
-   ★ 修正：前段の高さだけ積み上げ。ヘッダー分は入れない */
-.tbl-tools{
-  position:sticky; top:var(--links-h); z-index:4;   /* ← 変更 */
-  display:flex; gap:8px; align-items:center;
-  height:var(--tools-h); padding:0; margin:0; background:#fff;
-  border-bottom:1px solid #e5e5e5;
-}
-/* iOS Safari のズーム防止対策 */
-.tbl-tools input[type="text"] {
-  font-size: 16px;          /* ← ここを12px→16pxに変更 */
-  line-height: 1.2;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  padding: 7px 10px;        /* 高さ調整 */
-  width: 260px;
-  font-family: var(--ui-font);
-}
-
-/* ▼ テーブル（ヘッダー固定・隙間ゼロ）
-   ★ 修正：th の top も同様に積み上げのみ */
-.tbl{
-  width:100%; margin:0; border-collapse:separate; border-spacing:0;
-  font-size:12px; table-layout:fixed; font-family:var(--ui-font);
-}
-.tbl th,.tbl td{padding:6px 8px; border-bottom:1px solid #eee;}
-.tbl th{
-  position:sticky;
-  top:calc(var(--links-h) + var(--tools-h) - 1px);   /* ← 変更 */
-  z-index:3; background:#fafafa; border-bottom:1px solid #e5e5e5; cursor:pointer; user-select:none;
-}
-.tbl .col-name{width:50%;}
-.tbl .col-weight{width:24%;}
-.tbl .col-count{width:26%;}
-.tbl th .sort{font-size:11px; opacity:.7; margin-left:4px; vertical-align:middle;}
-#portsTbody tr{cursor:pointer;}
-#portsTbody tr:hover{background:#f7faff;}
-
-/* Leaflet 既定コントロール非表示 */
-.leaflet-control-zoom, .leaflet-control-attribution{display:none !important;}
-.leaflet-div-icon{background:transparent !important; border:none !important;}
-
-/* バッジ（ポップアップ/Tip） */
-.tag{display:inline-block; padding:2px 8px; border-radius:999px; font:11px/1 var(--ui-font); font-weight:bold; color:#fff;}
-.tag-urgent{background:#e60026;}
-.tag-watch-yellow{background:#ff8c00;}
-.tag-watch-green{background:#6fa86f;}
-</style>
-</head>
-<body>
-<div id="map"></div>
-
-<!-- ── 左上：凡例 ── -->
-<div id="legend-top">
-  <div class="legend-row">
-    <div class="legend-left"><span class="legend-dot" style="color:#e60026;">●</span>交換必須</div>
-    <div class="legend-count" id="cnt-urgent">0</div><div></div>
-  </div>
-  <div class="legend-row">
-    <div class="legend-left"><span class="legend-dot" style="color:#ff8c00;">●</span>交換可能</div>
-    <div class="legend-count" id="cnt-yellow">0</div>
-    <div><input type="checkbox" id="chk-yellow" checked></div>
-  </div>
-  <div class="legend-row">
-    <div class="legend-left"><span class="legend-dot" style="color:#6fa86f;">●</span>経過観測</div>
-    <div class="legend-count" id="cnt-green">0</div>
-    <div><input type="checkbox" id="chk-green"></div>
-  </div>
-  <div class="legend-note-wrap">
-    <div class="legend-note">交換必須「40件以上」は
-赤色ポートを優先巡回！</div>
-    <button id="tipAll" class="tip-btn" title="定義を表示">i</button>
-  </div>
-</div>
-
-<!-- ── 右上：ハンバーガー ── -->
-<button id="menuBtn" aria-label="一覧を開く">
-  <svg viewBox="0 0 24 24"><path d="M4 6h16a1 1 0 1 1 0 2H4a1 1 0 0 1 0-2zm0 6h16a1 1 0 1 1 0 2H4a1 1 0 0 1 0-2zm0 6h16a1 1 0 1 1 0 2H4a1 1 0 0 1 0-2z"/></svg>
-</button>
-
-<!-- ── 右スライド：電池交換ポート一覧 ── -->
-<div id="drawer" aria-hidden="true">
-  <div class="drawer-head">
-    <b>電池交換ポート一覧</b>
-    <button class="drawer-close" id="drawerClose" aria-label="閉じる">×</button>
-  </div>
-  <div class="drawer-body">
-    <!-- 固定①：フォーム行（2リンク） -->
-    <div class="links-block">
-      <div>▼ <a href="https://forms.gle/76DsMzvctM4ajJt86" target="_blank" rel="noopener">ポート巡回報告フォーム</a></div>
-      <div>▼ <a href="https://forms.gle/WTEwgx3QVEkprt176" target="_blank" rel="noopener">不具合・修理対応報告フォーム</a></div>
+  <!-- ── 左上：凡例 ── -->
+  <div id="legend-top">
+    <div class="legend-row">
+      <div class="legend-left"><span class="legend-dot" style="color:#e60026;">●</span>交換必須</div>
+      <div class="legend-count" id="cnt-urgent">0</div><div></div>
     </div>
-    <!-- 固定②：検索バー -->
-    <div class="tbl-tools">
-      <input type="text" id="qGlobal" placeholder="🔎 キーワード検索（ポート名）" aria-label="キーワード検索">
+    <div class="legend-row">
+      <div class="legend-left"><span class="legend-dot" style="color:#ff8c00;">●</span>交換可能</div>
+      <div class="legend-count" id="cnt-yellow">0</div>
+      <div><input type="checkbox" id="chk-yellow" checked></div>
     </div>
-    <!-- 固定③：ヘッダー（thのstickyで固定）＋ 本文 -->
-    <table class="tbl" id="portsTable">
-      <thead>
-        <tr>
-          <th data-key="name"   class="col-name"  id="th-name">ポート名 <span class="sort" id="sort-name">⇅</span></th>
-          <th data-key="weight" class="col-weight" id="th-weight">電池比重 <span class="sort" id="sort-weight">⇅</span></th>
-          <th data-key="count"  class="col-count"  id="th-count">目安交換台数 <span class="sort" id="sort-count">⇅</span></th>
-        </tr>
-      </thead>
-      <tbody id="portsTbody"></tbody>
-    </table>
+    <div class="legend-row">
+      <div class="legend-left"><span class="legend-dot" style="color:#6fa86f;">●</span>経過観測</div>
+      <div class="legend-count" id="cnt-green">0</div>
+      <div><input type="checkbox" id="chk-green"></div>
+    </div>
+    <div class="legend-note-wrap">
+      <div class="legend-note">交換必須「40件以上」は<br>赤色ポートを優先巡回！</div>
+      <button id="tipAll" class="tip-btn" title="定義を表示">i</button>
+    </div>
   </div>
-</div>
 
-<!-- ── 右下：未読更新ボタン & 現在地 & 更新時刻 ── -->
-<button id="refreshBtn">更新<span id="refreshBadge"></span></button>
-
-<div id="locateFab">
-  <button id="locateBtn" class="fab-btn idle" title="現在地へ移動 / 追従ON（タップ直後のみ）">
-    <svg viewBox="0 0 24 24"><path d="M12 2l6.5 18.5-6.5-3-6.5 3L12 2z"></path></svg>
+  <!-- ── 右上：ハンバーガー ── -->
+  <button id="menuBtn" aria-label="一覧を開く">
+    <svg viewBox="0 0 24 24"><path d="M4 6h16a1 1 0 1 1 0 2H4a1 1 0 0 1 0-2zm0 6h16a1 1 0 1 1 0 2H4a1 1 0 0 1 0-2zm0 6h16a1 1 0 1 1 0 2H4a1 1 0 0 1 0-2z"/></svg>
   </button>
-</div>
 
-<div id="hud">
-  <div id="legend"><strong>更新日時：</strong><span id="updateTime">読み込み中…</span></div>
-  <div id="credit">
-    © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> /
-    © <a href="https://stamen.com" target="_blank" rel="noopener">Stamen</a> /
-    © <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OSM</a>
-  </div>
-</div>
-
-<!-- Tips -->
-<div id="tipBackdrop"></div>
-<div id="tipBox"></div>
-
-<script>
-/* ── マップ（CARTO Light） ── */
-const MAP = L.map('map',{zoomControl:false}).setView([35.0116,135.7681],12);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-  {maxZoom:19, subdomains:'abcd'}).addTo(MAP);
-const markersLayer = L.layerGroup().addTo(MAP);
-
-/* ── 凡例チェック ── */
-const chkYellow = document.getElementById('chk-yellow');
-const chkGreen  = document.getElementById('chk-green');
-let userTouchedYellow=false, userTouchedGreen=false;
-chkYellow.addEventListener('change', ()=>{ userTouchedYellow=true; redrawLast(); });
-chkGreen .addEventListener('change', ()=>{ userTouchedGreen =true; redrawLast(); });
-
-/* ── ステータス判定 ── */
-function isAbandoned(name){ return typeof name==='string' && name.includes('ポート外'); }
-function statusOf(weight,count,name){
-  const w = Number(weight)||0, c = Number(count)||0;
-  if (w>=6 || (c>=3 && w>=6) || isAbandoned(name)) return 'urgent';
-  if (c>=3 || (c>=2 && w===5)) return 'watch-yellow';
-  if (c>=2) return 'watch-green';
-  return null;
-}
-function colorByStatus(s){ return s==='urgent'?'#e60026': s==='watch-yellow'?'#ff8c00':'#6fa86f'; }
-function radiusByCount(c){ return Math.max(6, Math.min(22, 6 + (Number(c)||0)*2)); }
-
-/* ── データ描画 ── */
-let lastDataObj=null, lastDataJson="", pendingText="";
-let markerByKey=new Map();
-function markerKey(it){ return `${it.lat},${it.lng},${it.name}`; }
-
-function setCounts(total){
-  document.getElementById('cnt-urgent').textContent = total.urgent;
-  document.getElementById('cnt-yellow').textContent = total.yellow;
-  document.getElementById('cnt-green' ).textContent = total.green;
-}
-
-function render(data){
-  lastDataObj = data;
-  markerByKey.clear();
-  markersLayer.clearLayers();
-
-  const total={urgent:0,yellow:0,green:0};
-  const classified=(data.items||[]).map(r=>{
-    const s=statusOf(r.weight,r.count,r.name);
-    if(s==='urgent') total.urgent++;
-    else if(s==='watch-yellow') total.yellow++;
-    else if(s==='watch-green') total.green++;
-    return {...r, s};
-  });
-  setCounts(total);
-
-  // “赤40以上”なら、未操作時のみ黄/緑を既定OFF
-  if(total.urgent>=40){
-    if(!userTouchedYellow) chkYellow.checked=false;
-    if(!userTouchedGreen)  chkGreen.checked=false;
-  }
-
-  for(const it of classified){
-    const s=it.s; if(!s) continue;
-    if(s==='watch-yellow' && !chkYellow.checked) continue;
-    if(s==='watch-green'  && !chkGreen.checked)  continue;
-
-    const tagName = s==='urgent' ? '交換必須' : s==='watch-yellow' ? '交換可能' : '経過観測';
-    const tagClass = s==='urgent' ? 'tag-urgent' : s==='watch-yellow' ? 'tag-watch-yellow' : 'tag-watch-green';
-
-    const html = `
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <strong>${it.name}</strong>
-        <span class="tag ${tagClass}">${tagName}</span>
+  <!-- ── 右スライド：電池交換ポート一覧 ── -->
+  <div id="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <b>電池交換ポート一覧</b>
+      <button class="drawer-close" id="drawerClose" aria-label="閉じる">×</button>
+    </div>
+    <div class="drawer-body">
+      <!-- 固定①：フォーム行（2リンク） -->
+      <div class="links-block">
+        <div>▼ <a href="https://forms.gle/76DsMzvctM4ajJt86" target="_blank" rel="noopener">ポート巡回報告フォーム</a></div>
+        <div>▼ <a href="https://forms.gle/WTEwgx3QVEkprt176" target="_blank" rel="noopener">不具合・修理対応報告フォーム</a></div>
       </div>
-      <div style="margin-top:10px">
-        <a href="https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=driving" target="_blank" rel="noopener">車経路（GoogleMAP）</a>
-      </div>`;
+      <!-- 固定②：検索バー -->
+      <div class="tbl-tools">
+        <input type="text" id="qGlobal" placeholder="🔎 キーワード検索（ポート名）" aria-label="キーワード検索">
+      </div>
+      <!-- 固定③：ヘッダー（thのstickyで固定）＋ 本文 -->
+      <table class="tbl" id="portsTable">
+        <thead>
+          <tr>
+            <th data-key="name"   class="col-name"  id="th-name">ポート名 <span class="sort" id="sort-name">⇅</span></th>
+            <th data-key="weight" class="col-weight" id="th-weight">電池比重 <span class="sort" id="sort-weight">⇅</span></th>
+            <th data-key="count"  class="col-count"  id="th-count">目安交換台数 <span class="sort" id="sort-count">⇅</span></th>
+          </tr>
+        </thead>
+        <tbody id="portsTbody"></tbody>
+      </table>
+    </div>
+  </div>
 
-    const m = L.circleMarker([it.lat,it.lng], {
-      radius: radiusByCount(it.count),
-      color:'#fff', weight:1.4, fillColor:colorByStatus(s), fillOpacity:.92
-    }).bindPopup(html, { autoPan:true, closeButton:true }).addTo(markersLayer);
+  <!-- ── 右下：未読更新ボタン & 現在地 & 更新時刻 ── -->
+  <button id="refreshBtn">更新<span id="refreshBadge"></span></button>
 
-    markerByKey.set(markerKey(it), m);
-  }
+  <div id="locateFab">
+    <button id="locateBtn" class="fab-btn idle" title="現在地へ移動 / 追従ON（タップ直後のみ）">
+      <svg viewBox="0 0 24 24"><path d="M12 2l6.5 18.5-6.5-3-6.5 3L12 2z"></path></svg>
+    </button>
+  </div>
 
-  const latest=(data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0]||'-';
-  document.getElementById('updateTime').textContent = latest;
+  <div id="hud">
+    <div id="legend"><strong>更新日時：</strong><span id="updateTime">読み込み中…</span></div>
+    <div id="credit">
+      © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> /
+      © <a href="https://stamen.com" target="_blank" rel="noopener">Stamen</a> /
+      © <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OSM</a>
+    </div>
+  </div>
 
-  buildTable(classified);
-}
+  <!-- Tips -->
+  <div id="tipBackdrop"></div>
+  <div id="tipBox"></div>
 
-function redrawLast(){ if(lastDataObj) render(lastDataObj); }
-
-/* ── JSON 監視：差分があれば更新ボタンにバッジ ── */
-const refreshBtn   = document.getElementById('refreshBtn');
-const refreshBadge = document.getElementById('refreshBadge');
-async function pollData(){
-  try{
-    const res=await fetch('data.json?_=' + Date.now());
-    if(!res.ok) return;
-    const txt=await res.text();
-    if(txt===lastDataJson) return;
-    pendingText = txt;
-    refreshBtn.style.display = 'inline-block';
-    refreshBadge.style.display = 'inline-block';
-  }catch(e){ console.error(e); }
-}
-setInterval(pollData, 300000); // 5分おき
-
-refreshBtn.addEventListener('click', ()=>{
-  if(!pendingText) return;
-  const center=MAP.getCenter(), zoom=MAP.getZoom();
-  lastDataJson = pendingText; pendingText="";
-  const data=JSON.parse(lastDataJson);
-  render(data);
-  MAP.setView(center, zoom, { animate:false }); // 位置とズームは保持
-  refreshBadge.style.display='none';
-  refreshBtn.style.display='none';
-});
-
-/* 初回ロード */
-(async()=>{
-  try{
-    const res=await fetch('data.json?_=' + Date.now());
-    if(res.ok){ lastDataJson=await res.text(); render(JSON.parse(lastDataJson)); }
-  }catch(e){ console.error(e); }
-})();
-
-/* ── 現在地（タップ直後のみ追従ON／ズーム・ドラッグでOFF） ── */
-let meMarker=null, meCircle=null, watchId=null, lastMe=null, following=false;
-const btnLocate=document.getElementById('locateBtn');
-function updateFollowIcon(){ btnLocate.classList.toggle('following',following); btnLocate.classList.toggle('idle',!following); }
-function stopWatch(){ if(watchId){ navigator.geolocation.clearWatch(watchId); watchId=null; } }
-function showOrUpdateMe(lat,lng,acc){
-  if(!meMarker){
-    const div=L.divIcon({className:'', html:'<div class="me-dot"></div>', iconSize:[16,16], iconAnchor:[8,8]});
-    meMarker=L.marker([lat,lng],{icon:div,interactive:false}).addTo(MAP);
-    meCircle=L.circle([lat,lng],{radius:acc||30,color:'#2c7be5',weight:1,fillColor:'#2c7be5',fillOpacity:0.12,interactive:false}).addTo(MAP);
-  }else{
-    meMarker.setLatLng([lat,lng]);
-    meCircle.setLatLng([lat,lng]).setRadius(acc||30);
-  }
-  lastMe={lat,lng};
-  if(following){ MAP.panTo([lat,lng],{animate:true}); }
-}
-btnLocate.addEventListener('click', ()=>{
-  if(!('geolocation' in navigator)){ alert('位置情報が利用できません'); return; }
-  following=true; updateFollowIcon();
-  stopWatch();
-  watchId=navigator.geolocation.watchPosition(
-    p=>{ const {latitude,longitude,accuracy}=p.coords; showOrUpdateMe(latitude,longitude,accuracy); },
-    err=>{ console.warn('watchPosition error:',err); },
-    { enableHighAccuracy:true, maximumAge:5000 }
-  );
-  navigator.geolocation.getCurrentPosition(
-    pos=>{ const {latitude,longitude,accuracy}=pos.coords; showOrUpdateMe(latitude,longitude,accuracy);
-           if(MAP.getZoom()<15) MAP.setView([latitude,longitude],15,{animate:true}); else MAP.panTo([latitude,longitude],{animate:true}); },
-    err=>{ if(lastMe){ MAP.panTo([lastMe.lat,lastMe.lng],{animate:true}); } else { alert('現在地を取得できません：'+err.message); } },
-    { enableHighAccuracy:true, timeout:10000, maximumAge:5000 }
-  );
-});
-MAP.on('dragstart', ()=>{ if(following){ following=false; updateFollowIcon(); stopWatch(); }});
-MAP.on('zoomstart', ()=>{ if(following){ following=false; updateFollowIcon(); stopWatch(); }});
-
-/* ── 一覧（ドロワー） ── */
-const drawer      = document.getElementById('drawer');
-const menuBtn     = document.getElementById('menuBtn');
-const drawerClose = document.getElementById('drawerClose');
-menuBtn.addEventListener('click', ()=>{
-  drawer.classList.add('open');
-  drawer.setAttribute('aria-hidden','false');
-  document.documentElement.classList.add('no-hscroll');
-  document.body.classList.add('no-hscroll');
-});
-drawerClose.addEventListener('click', ()=>{
-  drawer.classList.remove('open');
-  drawer.setAttribute('aria-hidden','true');
-  document.documentElement.classList.remove('no-hscroll');
-  document.body.classList.remove('no-hscroll');
-});
-
-/* ──────────────────────────────────────────────
-   📊 一覧テーブル（検索・ソート・クリック）
-────────────────────────────────────────────── */
-
-const qGlobal = document.getElementById('qGlobal');
-const tbody   = document.getElementById('portsTbody');
-
-/* 方向は 'asc' / 'desc' の文字列で管理して分かりやすく */
-let sortKey = 'weight';   // 初期は「電池比重」
-let sortDir = 'desc';     // 初期は降順
-let tableRows = [];
-
-/* ユーティリティ：数値比較（方向つき） */
-function cmpNum(a, b, dir) {
-  return dir === 'asc' ? (a - b) : (b - a);
-}
-
-/* ソートアイコン更新を関数化 */
-function updateSortIndicators() {
-  document.getElementById('sort-name'  ).textContent   = sortKey==='name'   ? (sortDir==='asc'?'↑':'↓') : '⇅';
-  document.getElementById('sort-weight').textContent = sortKey==='weight' ? (sortDir==='asc'?'↑':'↓') : '⇅';
-  document.getElementById('sort-count' ).textContent  = sortKey==='count'  ? (sortDir==='asc'?'↑':'↓') : '⇅';
-}
-
-/* JSON → 一覧データ整形（初期状態の並びと矢印もここでセット） */
-function buildTable(items){
-  tableRows = (items || []).map(r => ({
-    name: r.name,
-    weight: Number(r.weight) || 0,
-    count: Number(r.count) || 0,
-    lat: r.lat,
-    lng: r.lng,
-    s: r.s ?? null
-  }));
-
-  // 初期表示：電池比重→台数の「降順」
-  sortKey = 'weight';
-  sortDir = 'desc';
-  updateSortIndicators();
-  renderTable();
-}
-
-/* 現在の検索・ソート状態で tbody を再描画 */
-function renderTable(){
-  const q = qGlobal.value.trim().toLowerCase();
-
-  // 🔍 検索はポート名のみ
-  let rows = tableRows.filter(r => !q || r.name.toLowerCase().includes(q));
-
-  // 🔽 ソート（複合キー対応）
-  rows.sort((a, b) => {
-    if (sortKey === 'weight') {
-      const p = cmpNum(a.weight, b.weight, sortDir);
-      return p !== 0 ? p : cmpNum(a.count, b.count, sortDir);
-    }
-    if (sortKey === 'count') {
-      const p = cmpNum(a.count, b.count, sortDir);
-      return p !== 0 ? p : cmpNum(a.weight, b.weight, sortDir);
-    }
-    // name は文字列比較
-    return sortDir === 'asc'
-      ? a.name.localeCompare(b.name)
-      : b.name.localeCompare(a.name);
-  });
-
-  // 🧱 HTML生成
-  tbody.innerHTML = rows.map(r => `
-    <tr data-lat="${r.lat}" data-lng="${r.lng}" data-name="${r.name}">
-      <td>${r.name}</td><td>${r.weight}</td><td>${r.count}</td>
-    </tr>`).join('');
-
-  // 🖱 行クリック → マップへパン & ポップアップ
-  Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
-    tr.addEventListener('click', () => {
-      const lat  = parseFloat(tr.dataset.lat);
-      const lng  = parseFloat(tr.dataset.lng);
-      const name = tr.dataset.name;
-      const key  = `${lat},${lng},${name}`;
-      const m = markerByKey.get(key);
-      MAP.panTo([lat, lng], { animate:true });
-      if (m) m.openPopup();
-    });
-  });
-}
-
-/* 列ヘッダークリックでソート切り替え */
-function setSort(k){
-  if (sortKey !== k) {
-    sortKey = k;
-    sortDir = 'desc';            // 新しい列は降順スタート
-  } else {
-    sortDir = (sortDir === 'asc') ? 'desc' : 'asc';  // トグル
-  }
-  updateSortIndicators();
-  renderTable();
-}
-
-/* イベント */
-document.getElementById('th-name'  ).addEventListener('click', () => setSort('name'));
-document.getElementById('th-weight').addEventListener('click', () => setSort('weight'));
-document.getElementById('th-count' ).addEventListener('click', () => setSort('count'));
-qGlobal.addEventListener('input', renderTable);　// 入力時にリアルタイム検索
- 
-/* ── Tips内容 ── */
-const tipBackdrop=document.getElementById('tipBackdrop');
-const tipBox=document.getElementById('tipBox');
-const tipAll=document.getElementById('tipAll');
-const tipHtml = `
-  <span class="close" id="tipClose">×</span>
-  <h4><span class="tag tag-urgent">交換必須</span></h4>
-    <ul>
-      <li>最優先の交換対象ポート！中心地の駅周辺は当日交換必須</li>
-      <li>ＡＴ異常や長期電池切れ車両（ポート外含む）を厳選表示</li>
-      <li>表示定義「交換比重 6以上」または「交換台数 3台以上」</li>
-    </ul>
-    <h4><span class="tag tag-watch-yellow">交換可能</span></h4>
-    <ul>
-      <li>交換可能ポートは基本的に交換必須「40件未満」で巡回</li>
-      <li>但し「交換台数 4台以上」なら交換必須ポートの導線付近に限り現場判断で効率よく巡回をお願いいたします</li>
-      <li>交換必須「40件以上」なら起動時に☑チェックなし</li>
-      <li>表示定義「交換比重 5」または「交換台数 2台以上」</li>
-    </ul>
-    <h4><span class="tag tag-watch-green">経過観測</span></h4>
-    <ul>
-      <li>経過観測は巡回不要、起動時に標準で☑チェックなし</li>
-      <li>表示定義「交換台数 2台」</li>
-    </ul>`;
-function openTips(){ tipBox.innerHTML=tipHtml; tipBackdrop.style.display='block'; tipBox.style.display='block'; document.getElementById('tipClose')?.addEventListener('click', closeTips); }
-function closeTips(){ tipBackdrop.style.display='none'; tipBox.style.display='none'; }
-tipAll.addEventListener('click', openTips);
-tipBackdrop.addEventListener('click', closeTips);
-document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeTips(); });
-
-/* ── マップ以外のピンチズーム/ctrl+wheelを抑止 ── */
-document.addEventListener('gesturestart', e=>{ if(!e.target.closest('#map')) e.preventDefault(); }, {passive:false});
-document.addEventListener('wheel', e=>{ if(e.ctrlKey && !e.target.closest('#map')) e.preventDefault(); }, {passive:false});
-</script>
+  <script type="module" src="./src/js/main.js"></script>
 </body>
 </html>
