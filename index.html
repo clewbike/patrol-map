@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>電池交換マップ</title>
   <meta name="robots" content="noindex,nofollow">
+
+  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
 
@@ -12,130 +14,265 @@
     :root{
       --ui-font:"Segoe UI","Helvetica Neue",sans-serif;
       --drawer-head-h:44px;
-      --tools-h:44px;
+      --tools-h:38px;
     }
     html,body{height:100%;margin:0;background:#f7f7f7;font-family:var(--ui-font);}
     html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
     #map{height:100%;}
 
-    /* マップ外はズーム抑制 */
+    /* マップ外はピンチズーム禁止（縦スクロールのみ許可） */
     #legend-top,#hud,#menuBtn,#drawer,#refreshBtn,#locateFab,#tipBackdrop,#tipBox{touch-action:pan-y;}
 
-    /* 凡例 */
-    #legend-top{position:absolute;top:8px;left:8px;z-index:1000;
-      background:rgba(255,255,255,.96);padding:6px 7px;border-radius:9px;
-      font:12px/1.35 var(--ui-font);box-shadow:0 1px 6px rgba(0,0,0,.18);width:145px;}
-    .legend-row{display:grid;grid-template-columns:auto 24px 18px;align-items:center;column-gap:4px;margin:1px 0;}
-    .legend-left{display:flex;align-items:center;gap:4px;}
-    .legend-dot{font-weight:700;}
-    .legend-count{text-align:left;font-weight:700;font-variant-numeric:tabular-nums;}
-    .legend-ctrl{width:18px;display:flex;justify-content:flex-start;}
-    input[type=checkbox]{transform:scale(1.0);cursor:pointer;}
-    .legend-note-wrap{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:4px;}
-    .legend-note{font-size:10.8px;color:#b00020;line-height:1.4;white-space:pre-line;}
+    /* ── 左上：凡例（コンパクト） ── */
+    #legend-top{
+      position:absolute; top:8px; left:8px; z-index:1000; user-select:none;
+      background:rgba(255,255,255,.96);
+      padding:6px 7px; border-radius:9px;
+      font:12px/1.35 var(--ui-font);
+      box-shadow:0 1px 6px rgba(0,0,0,.18);
+      width:145px;
+    }
+    .legend-row{
+      display:grid;
+      grid-template-columns:auto 24px 18px; /* 名称 / 件数 / チェック */
+      align-items:center;
+      column-gap:4px;
+      margin:1px 0;
+    }
+    .legend-left{ display:flex; align-items:center; gap:4px; min-width:0; }
+    .legend-dot{ font-weight:700; }
+    .legend-count{
+      text-align:left; font-weight:700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing:.01em;
+    }
+    .legend-ctrl{ width:18px; display:flex; justify-content:flex-start; }
+    input[type=checkbox]{ transform:scale(1.0); cursor:pointer; }
+    .legend-note-wrap{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:6px; margin-top:4px;
+    }
+    .legend-note{ font-size:10.8px; color:#b00020; line-height:1.35; white-space:pre-line; }
+    .tip-btn{
+      width:16px; height:16px; border-radius:50%;
+      border:0; cursor:pointer;
+      background:#eef3ff; color:#2c7be5; font:700 11px/16px system-ui;
+      display:inline-flex; align-items:center; justify-content:center;
+      flex:0 0 auto;
+    }
+    .tip-btn:active{ transform:scale(.96); }
 
-    /* Tips */
-    .tip-btn{width:16px;height:16px;border-radius:50%;border:0;cursor:pointer;background:#eef3ff;color:#2c7be5;font:700 11px/16px system-ui;display:inline-flex;align-items:center;justify-content:center;}
-    .tip-btn:active{transform:scale(.96);}
-    #tipBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.25);display:none;z-index:1100;}
-    #tipBox{position:absolute;left:10px;right:10px;bottom:10px;z-index:1110;background:#1f1f1fe6;color:#fff;padding:10px 12px;border-radius:10px;
-      font:12.5px/1.6 var(--ui-font);box-shadow:0 4px 14px rgba(0,0,0,.28);display:none;max-width:520px;}
-    #tipBox h4{margin:6px 0;font-size:12.5px;display:flex;align-items:center;gap:8px;}
-    #tipBox ul{margin:0 0 8px 1.2em;padding:0;}
-    #tipBox li{margin:2px 0;}
-    #tipBox .close{float:right;margin-left:8px;cursor:pointer;color:#ddd;font-weight:700;}
+    /* Tips（iボタンの内容） */
+    #tipBackdrop{ position:fixed; inset:0; background:rgba(0,0,0,.25); display:none; z-index:1100; }
+    #tipBox{
+      position:absolute; left:10px; right:10px; bottom:10px; z-index:1110;
+      background:#1f1f1fe6; color:#fff; padding:10px 12px;
+      border-radius:10px; font:12.5px/1.6 var(--ui-font);
+      box-shadow:0 4px 14px rgba(0,0,0,.28); display:none; max-width:520px;
+    }
+    #tipBox h4{ margin:6px 0; font-size:12.5px; display:flex; align-items:center; gap:8px; }
+    #tipBox ul{ margin:0 0 8px 1.2em; padding:0; }
+    #tipBox li{ margin:2px 0; }
+    #tipBox .close{ float:right; margin-left:8px; cursor:pointer; color:#ddd; font-weight:700; }
 
-    /* HUD */
-    #hud{position:absolute;right:4px;bottom:4px;z-index:1000;display:flex;flex-direction:column;align-items:flex-end;gap:4px;pointer-events:none;}
-    #legend{background:rgba(0,0,0,.78);color:#fff;padding:5px 10px;border-radius:6px;font:12px/1.5 var(--ui-font);pointer-events:auto;}
-    #credit{font:10px/1 var(--ui-font);color:#ddd;white-space:nowrap;}
-    #credit a{color:#ddd;text-decoration:none;}
+    /* ── 右下：更新時刻＋クレジット ── */
+    #hud{
+      position:absolute; right:4px; bottom:4px; z-index:1000;
+      display:flex; flex-direction:column; align-items:flex-end; gap:4px;
+      pointer-events:none;
+    }
+    #legend{
+      background:rgba(0,0,0,.78); color:#fff;
+      padding:5px 10px; border-radius:6px;
+      font:12px/1.5 var(--ui-font);
+      box-shadow:0 1px 3px rgba(0,0,0,.3);
+      pointer-events:auto;
+    }
+    #credit{
+      font:10px/1 var(--ui-font); color:#ddd; white-space:nowrap;
+      pointer-events:auto; margin-right:2px;
+    }
+    #credit a{ color:#ddd; text-decoration:none; }
 
-    /* 更新ボタン */
-    #refreshBtn{position:absolute;right:8px;bottom:120px;z-index:1000;background:#fff;border:1px solid #ccc;border-radius:999px;
-      padding:8px 12px;font:12px var(--ui-font);cursor:pointer;display:none;box-shadow:0 2px 8px rgba(0,0,0,.25);}
-    #refreshBadge{display:none;margin-left:8px;width:8px;height:8px;border-radius:50%;background:#e60026;}
+    /* ── 右下：未読あり「更新」ボタン ── */
+    #refreshBtn{
+      position:absolute; right:8px; bottom:120px; z-index:1000;
+      background:#fff; border:1px solid #ccc; border-radius:999px;
+      padding:8px 12px; font:12px var(--ui-font); cursor:pointer; display:none;
+      box-shadow:0 2px 8px rgba(0,0,0,.25);
+    }
+    #refreshBadge{
+      display:none; margin-left:8px; width:8px; height:8px; border-radius:50%;
+      background:#e60026; vertical-align:middle;
+    }
 
-    /* 現在地ボタン */
-    #locateFab{position:absolute;right:8px;bottom:64px;z-index:1000;}
-    .fab-btn{width:50px;height:50px;border-radius:50%;border:none;cursor:pointer;background:#fff;box-shadow:0 4px 10px rgba(0,0,0,.25);
-      display:flex;align-items:center;justify-content:center;transition:.1s;}
-    .fab-btn svg{width:24px;height:24px;}
-    .following svg{fill:#2c7be5;}.idle svg{fill:#777;}
+    /* ── 現在地FAB ── */
+    #locateFab{ position:absolute; right:8px; bottom:64px; z-index:1000; pointer-events:auto; }
+    .fab-btn{
+      width:50px; height:50px; border-radius:50%;
+      border:none; cursor:pointer; background:#fff;
+      box-shadow:0 4px 10px rgba(0,0,0,.25);
+      display:flex; align-items:center; justify-content:center;
+      transition: transform .08s ease-in-out, box-shadow .2s; touch-action: manipulation;
+    }
+    .fab-btn:active{ transform:scale(0.95); }
+    .fab-btn svg{ width:24px; height:24px; transition: fill .2s; }
+    .following svg{ fill:#2c7be5; } .idle svg{ fill:#777; }
 
-    .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:bold;color:#fff;}
-    .tag-urgent{background:#e60026;}
-    .tag-watch-yellow{background:#ff8c00;}
-    .tag-watch-green{background:#6fa86f;}
-    .leaflet-control-zoom,.leaflet-control-attribution{display:none!important;}
-    .me-dot{width:12px;height:12px;border-radius:50%;background:#2c7be5;border:2px solid #fff;box-shadow:0 0 6px 2px rgba(44,123,229,0.5);}
+    /* バッジ（ピンと共通） */
+    .tag{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:bold; color:#fff; }
+    .tag-urgent{ background:#e60026; }
+    .tag-watch-yellow{ background:#ff8c00; }
+    .tag-watch-green{ background:#6fa86f; }
 
-    /* ハンバーガー */
-    #menuBtn{position:absolute;top:8px;right:8px;z-index:1000;width:40px;height:40px;border-radius:10px;
-      display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid #ddd;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15);}
-    #menuBtn svg{width:22px;height:22px;}
-    #menuBtn path{fill:#444;}
-    #menuBtn:hover path{fill:#111;}
+    /* Leafletコントロール非表示・現在地マーカー */
+    .leaflet-control-zoom, .leaflet-control-attribution{ display:none !important; }
+    .leaflet-div-icon{ background:transparent !important; border:none !important; }
+    .me-dot{
+      width:12px; height:12px; border-radius:50%;
+      background:#2c7be5; border:2px solid #fff;
+      box-shadow:0 0 6px 2px rgba(44,123,229,0.5);
+      pointer-events:none;
+    }
 
-    /* ドロワー */
-    #drawer{position:absolute;top:0;right:0;bottom:0;width:min(580px,94vw);background:#fff;z-index:1200;
-      box-shadow:-6px 0 16px rgba(0,0,0,.25);transform:translateX(100%);transition:transform .25s ease;
-      display:flex;flex-direction:column;overflow-x:hidden;font-family:var(--ui-font);touch-action:none;}
-    #drawer.open{transform:translateX(0);}
-    .drawer-head{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;
-      height:var(--drawer-head-h);padding:10px 12px;border-bottom:1px solid #eee;background:#fff;}
-    .drawer-head b{font-size:14px;}
-    .drawer-close{border:0;background:transparent;font-size:18px;cursor:pointer;padding:6px;color:#333;}
-    .drawer-close:hover{color:#000;}
-    .drawer-body{padding:0 12px 10px;overflow:auto;}
+    /* ── ハンバーガー（右上） ── */
+    #menuBtn{
+      position:absolute; top:8px; right:8px; z-index:1000;
+      width:40px; height:40px; border-radius:10px;
+      display:flex; align-items:center; justify-content:center;
+      background:#fff; border:1px solid #ddd; cursor:pointer;
+      box-shadow:0 2px 6px rgba(0,0,0,.15);
+    }
+    #menuBtn svg{ width:22px; height:22px; }
+    #menuBtn path{ fill:#444; }
+    #menuBtn:hover path{ fill:#111; }
 
-    /* フォームリンク */
-    .links-block{padding:6px 0 0;font-size:12px;line-height:1.6;}
-    .links-block a{color:#000;text-decoration:underline;}
-    .links-block a:hover{color:#000;text-decoration:underline;}
+    /* ── ドロワー（一覧） ── */
+    #drawer{
+      position:absolute; top:0; right:0; bottom:0; width:min(580px,94vw); background:#fff; z-index:1200;
+      box-shadow:-6px 0 16px rgba(0,0,0,.25); transform:translateX(100%); transition:transform .25s ease;
+      display:flex; flex-direction:column; overflow-x:hidden; font-family:var(--ui-font);
+      touch-action:none; /* ピンチズーム抑止 */
+    }
+    #drawer.open{ transform:translateX(0); }
 
-    /* 検索バー・テーブルヘッダー（隙間なし） */
-    .tbl-tools{position:sticky;top:var(--drawer-head-h);z-index:2;display:flex;gap:8px;align-items:center;
-      padding:6px 0;margin:0;background:#fff;border-bottom:1px solid #eee;}
-    .tbl-tools input[type="text"]{border:1px solid #ccc;border-radius:6px;padding:6px 8px;font-size:12px;width:260px;font-family:var(--ui-font);}
-    .tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed;font-family:var(--ui-font);}
-    .tbl th,.tbl td{padding:6px 8px;border-bottom:1px solid #eee;}
-    .tbl th{position:sticky;top:calc(var(--drawer-head-h) + var(--tools-h) - 2px);z-index:1;background:#fafafa;cursor:pointer;user-select:none;border-bottom:1px solid #e5e5e5;}
-    .tbl .col-name{width:50%;}
-    .tbl .col-weight{width:22%;}
-    .tbl .col-count{width:28%;}
-    .tbl th .sort{font-size:11px;opacity:.7;margin-left:4px;vertical-align:middle;}
-    .nowrap{white-space:nowrap;}
+    .drawer-head{
+      position:sticky; top:0; z-index:3;
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+      height:var(--drawer-head-h);
+      padding:10px 12px; border-bottom:1px solid #eee; background:#fff;
+    }
+    .drawer-head b{ font-size:14px; }
+    .drawer-close{
+      border:0; background:transparent; font-size:18px; cursor:pointer; padding:6px; color:#333;
+    }
+    .drawer-close:hover{ color:#000; }
+
+    .drawer-body{
+      padding:0 12px 10px;
+      overflow-y:auto; overflow-x:hidden !important;
+      background:#fff;
+      overscroll-behavior-x:none;
+      scroll-behavior:smooth;
+    }
+
+    /* フォームリンク（黒字＋下線） */
+    .links-block{ padding:6px 0 0; font-size:12px; line-height:1.6; }
+    .links-block a{ color:#000; text-decoration:underline; }
+    .links-block a:hover{ color:#000; text-decoration:underline; }
+
+    /* 検索バー（stickyで隙間ゼロ） */
+    .tbl-tools{
+      position:sticky; top:var(--drawer-head-h); z-index:5;
+      display:flex; gap:8px; align-items:center;
+      padding:6px 0; margin:0; background:#fff; border-bottom:1px solid #e5e5e5;
+    }
+    .tbl-tools input[type="text"]{
+      border:1px solid #ccc; border-radius:6px; padding:6px 8px; font-size:12px; width:260px;
+      font-family:var(--ui-font);
+    }
+
+    /* テーブル（列幅固定／ヘッダーsticky） */
+    .tbl{
+      width:100%; margin:0;
+      border-collapse:separate; border-spacing:0;
+      font-size:12px; table-layout:fixed; font-family:var(--ui-font);
+    }
+    .tbl th,.tbl td{ padding:6px 8px; border-bottom:1px solid #eee; }
+    .tbl th{
+      position:sticky;
+      top:calc(var(--drawer-head-h) + var(--tools-h) - 1px);
+      z-index:4; background:#fafafa; cursor:pointer; user-select:none; border-bottom:1px solid #e5e5e5;
+    }
+    .tbl .col-name{ width:50%; }
+    .tbl .col-weight{ width:22%; }
+    .tbl .col-count{ width:28%; }
+    .tbl th .sort{ font-size:11px; opacity:.7; margin-left:4px; vertical-align:middle; }
+
+    /* 一覧でのピンチズーム・横スクロール抑止（より強め） */
+    #drawer, #drawer *{ touch-action:pan-y; }
+    #drawer table, #drawer input, #drawer th, #drawer td{ touch-action:none; }
+
+    /* 行ホバーでクリック感 */
+    #portsTbody tr{ cursor:pointer; }
+    #portsTbody tr:hover{ background:#f7faff; }
   </style>
 </head>
 
 <body>
   <div id="map"></div>
 
+  <!-- 左上：凡例 -->
   <div id="legend-top">
-    <div class="legend-row"><div class="legend-left"><span class="legend-dot" style="color:#e60026;">●</span><span>交換必須</span></div><div class="legend-count" id="cnt-urgent">0</div><div class="legend-ctrl"></div></div>
-    <div class="legend-row"><div class="legend-left"><span class="legend-dot" style="color:#ff8c00;">●</span><span>交換可能</span></div><div class="legend-count" id="cnt-yellow">0</div><div class="legend-ctrl"><label><input type="checkbox" id="chk-yellow" checked></label></div></div>
-    <div class="legend-row"><div class="legend-left"><span class="legend-dot" style="color:#6fa86f;">●</span><span>経過観測</span></div><div class="legend-count" id="cnt-green">0</div><div class="legend-ctrl"><label><input type="checkbox" id="chk-green"></label></div></div>
-    <div class="legend-note-wrap"><div class="legend-note">交換必須「40件以上」は
-赤色ポートを優先巡回！</div><button id="tipAll" class="tip-btn">i</button></div>
+    <div class="legend-row">
+      <div class="legend-left"><span class="legend-dot" style="color:#e60026;">●</span><span>交換必須</span></div>
+      <div class="legend-count" id="cnt-urgent">0</div>
+      <div class="legend-ctrl"></div>
+    </div>
+    <div class="legend-row">
+      <div class="legend-left"><span class="legend-dot" style="color:#ff8c00;">●</span><span>交換可能</span></div>
+      <div class="legend-count" id="cnt-yellow">0</div>
+      <div class="legend-ctrl"><label><input type="checkbox" id="chk-yellow" checked></label></div>
+    </div>
+    <div class="legend-row">
+      <div class="legend-left"><span class="legend-dot" style="color:#6fa86f;">●</span><span>経過観測</span></div>
+      <div class="legend-count" id="cnt-green">0</div>
+      <div class="legend-ctrl"><label><input type="checkbox" id="chk-green"></label></div>
+    </div>
+    <div class="legend-note-wrap">
+      <div class="legend-note">交換必須「40件以上」は
+赤色ポートを優先巡回！</div>
+      <button id="tipAll" class="tip-btn" title="定義を表示">i</button>
+    </div>
   </div>
 
-  <button id="menuBtn"><svg viewBox="0 0 24 24"><path d="M4 6a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H5a1 1 0 0 1-1-1zm0 6a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H5a1 1 0 0 1-1-1zm1 5a1 1 0 0 0 0 2h14a1 1 0 1 0 0-2H5z"/></svg></button>
+  <!-- 右上：メニューボタン（一覧ドロワー） -->
+  <button id="menuBtn" title="電池交換ポート一覧を開く">
+    <svg viewBox="0 0 24 24"><path d="M4 6a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H5a1 1 0 0 1-1-1zm0 6a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H5a1 1 0 0 1-1-1zm1 5a1 1 0 0 0 0 2h14a1 1 0 1 0 0-2H5z"/></svg>
+  </button>
 
+  <!-- ドロワー：電池交換ポート一覧 -->
   <div id="drawer">
-    <div class="drawer-head"><b>電池交換ポート一覧</b><button class="drawer-close" id="drawerClose">×</button></div>
+    <div class="drawer-head">
+      <b>電池交換ポート一覧</b>
+      <button class="drawer-close" id="drawerClose" aria-label="閉じる">×</button>
+    </div>
     <div class="drawer-body">
       <div class="links-block">
-        <div>▼ <a href="https://forms.gle/76DsMzvctM4ajJt86" target="_blank">ポート巡回報告フォーム</a></div>
-        <div>▼ <a href="https://forms.gle/WTEwgx3QVEkprt176" target="_blank">不具合・修理対応報告フォーム</a></div>
+        <div>▼ <a href="https://forms.gle/76DsMzvctM4ajJt86" target="_blank" rel="noopener">ポート巡回報告フォーム</a></div>
+        <div>▼ <a href="https://forms.gle/WTEwgx3QVEkprt176" target="_blank" rel="noopener">不具合・修理対応報告フォーム</a></div>
       </div>
-      <div class="tbl-tools"><input type="text" id="qGlobal" placeholder="🔎 キーワード検索（ポート名/比重/台数）"></div>
+
+      <div class="tbl-tools">
+        <input type="text" id="qGlobal" placeholder="🔎 キーワード検索（ポート名/比重/台数）">
+      </div>
+
       <table class="tbl" id="portsTable">
         <thead>
           <tr>
-            <th data-key="name" class="col-name">ポート名 <span class="sort" id="sort-name">⇅</span></th>
-            <th data-key="weight" class="col-weight nowrap">電池比重 <span class="sort" id="sort-weight">⇅</span></th>
-            <th data-key="count" class="col-count nowrap">目安交換台数 <span class="sort" id="sort-count">⇅</span></th>
+            <th data-key="name"   class="col-name"  id="th-name">ポート名 <span class="sort" id="sort-name">⇅</span></th>
+            <th data-key="weight" class="col-weight nowrap" id="th-weight">電池比重 <span class="sort" id="sort-weight">⇅</span></th>
+            <th data-key="count"  class="col-count  nowrap" id="th-count">目安交換台数 <span class="sort" id="sort-count">⇅</span></th>
           </tr>
         </thead>
         <tbody id="portsTbody"></tbody>
@@ -143,32 +280,57 @@
     </div>
   </div>
 
+  <!-- 右下：手動更新ボタン（未読時のみ表示） -->
   <button id="refreshBtn">更新<span id="refreshBadge"></span></button>
-  <div id="locateFab"><button id="locateBtn" class="fab-btn idle"><svg viewBox="0 0 24 24"><path d="M12 2l6.5 18.5-6.5-3-6.5 3L12 2z"/></svg></button></div>
-  <div id="hud"><div id="legend"><strong>更新日時：</strong><span id="updateTime">読み込み中…</span></div>
-  <div id="credit">© <a href="https://carto.com/attributions">CARTO</a> / © <a href="https://stamen.com">Stamen</a> / © <a href="https://www.openstreetmap.org/">OSM</a></div></div>
-  <div id="tipBackdrop"></div><div id="tipBox"></div>
+
+  <!-- 現在地FAB -->
+  <div id="locateFab">
+    <button id="locateBtn" class="fab-btn idle" title="現在地へ移動 / 追従ON（タップ直後のみ）">
+      <svg viewBox="0 0 24 24"><path d="M12 2l6.5 18.5-6.5-3-6.5 3L12 2z"></path></svg>
+    </button>
+  </div>
+
+  <!-- 右下：更新時刻＋クレジット -->
+  <div id="hud">
+    <div id="legend"><strong>更新日時：</strong><span id="updateTime">読み込み中…</span></div>
+    <div id="credit">
+      © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> /
+      © <a href="https://stamen.com" target="_blank" rel="noopener">Stamen</a> /
+      © <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OSM</a>
+    </div>
+  </div>
+
+  <!-- Tips -->
+  <div id="tipBackdrop"></div>
+  <div id="tipBox"></div>
 
   <script>
-    /* マップ（CARTO） */
-    const MAP=L.map('map',{zoomControl:false}).setView([35.0116,135.7681],12);
+    /* =============== マップ初期化（CARTO） =============== */
+    const MAP = L.map('map', { zoomControl:false }).setView([35.0116,135.7681], 12);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-      {maxZoom:19,subdomains:'abcd'}).addTo(MAP);
-    const markersLayer=L.layerGroup().addTo(MAP);
+      { maxZoom:19, subdomains:'abcd' }
+    ).addTo(MAP);
 
-    /* プログラム操作抑制フラグ */
-    let suppressUserOff=false;
-    function withProgrammatic(fn, ms=600){ suppressUserOff=true; try{ fn(); } finally{ setTimeout(()=>{ suppressUserOff=false; }, ms); } }
+    const markersLayer = L.layerGroup().addTo(MAP);
 
-    /* 凡例UI */
-    const chkYellow=document.getElementById('chk-yellow');
-    const chkGreen =document.getElementById('chk-green');
+    /* =============== 凡例チェック =============== */
+    const chkYellow = document.getElementById('chk-yellow');
+    const chkGreen  = document.getElementById('chk-green');
     let userTouchedYellow=false, userTouchedGreen=false;
     chkYellow.addEventListener('change', ()=>{ userTouchedYellow=true; redrawLast(); });
     chkGreen .addEventListener('change', ()=>{ userTouchedGreen =true; redrawLast(); });
 
-    /* ステータス判定 */
-    function isAbandoned(name){ return typeof name==='string' && name.includes('ポート外'); }
+    /* =============== ステータス定義 =============== 
+       ●交換必須（赤）：
+         - w>=6  または  (c>=3 かつ w>=6)  または  ポート外
+       ●交換可能（黄）：
+         - c>=3  または  (c>=2 かつ w==5)
+       ●経過観測（緑）：
+         - c>=2
+    */
+    function isAbandoned(name){
+      return typeof name==='string' && name.includes('ポート外');
+    }
     function statusOf(weight,count,name){
       const w=Number(weight)||0, c=Number(count)||0;
       if (w>=6 || (c>=3 && w>=6) || isAbandoned(name)) return 'urgent';
@@ -176,22 +338,42 @@
       if (c>=2) return 'watch-green';
       return null;
     }
-    function colorByStatus(s){ return s==='urgent'?'#e60026':s==='watch-yellow'?'#ff8c00':s==='watch-green'?'#6fa86f':null; }
-    function radiusByCount(c){ return Math.max(6,Math.min(22,6+(Number(c)||0)*2)); }
-
+    function colorByStatus(s){
+      return s==='urgent' ? '#e60026'
+           : s==='watch-yellow' ? '#ff8c00'
+           : s==='watch-green' ? '#6fa86f'
+           : null;
+    }
+    function radiusByCount(c){ return Math.max(6, Math.min(22, 6 + (Number(c)||0) * 2)); }
     function setCounts(total){
       document.getElementById('cnt-urgent').textContent=total.urgent;
       document.getElementById('cnt-yellow').textContent=total.yellow;
       document.getElementById('cnt-green' ).textContent=total.green;
     }
 
-    /* 描画 */
+    /* =============== データロード =============== */
+    async function fetchText(url){
+      const res = await fetch(url);
+      if(!res.ok) throw new Error(url+' の取得に失敗');
+      return res.text();
+    }
+
     let lastDataObj=null, lastDataJson="", pendingText="";
     let lastUrgentHigh=false;
 
+    // マーカー参照用（一覧からパン＆ポップアップ）
+    const markerByKey = new Map(); // key: `${lat},${lng},${name}`
+
+    function markerKey(item){
+      return `${item.lat},${item.lng},${item.name}`;
+    }
+
     function render(data){
       lastDataObj=data;
+      markerByKey.clear();
+      markersLayer.clearLayers();
 
+      // 件数カウント
       const total={urgent:0,yellow:0,green:0};
       const classified=(data.items||[]).map(r=>{
         const s=statusOf(r.weight,r.count,r.name);
@@ -202,84 +384,94 @@
       });
       setCounts(total);
 
-      const urgentHigh=total.urgent>=40;
+      // 赤が40以上なら（ユーザー未操作の場合のみ）黄・緑を自動OFF
+      const urgentHigh = total.urgent>=40;
       if(urgentHigh){
         if(!userTouchedYellow) chkYellow.checked=false;
         if(!userTouchedGreen)  chkGreen.checked=false;
       }else{
         if(lastUrgentHigh){ userTouchedYellow=false; userTouchedGreen=false; }
       }
-      lastUrgentHigh=urgentHigh;
+      lastUrgentHigh = urgentHigh;
 
-      markersLayer.clearLayers();
-      for(const {lat,lng,name,weight,count,s} of classified){
+      // マーカー描画
+      for(const item of classified){
+        const {lat,lng,name,weight,count,s} = item;
         if(!s) continue;
         if(s==='watch-yellow' && !chkYellow.checked) continue;
         if(s==='watch-green'  && !chkGreen.checked)  continue;
 
-        const fill=colorByStatus(s);
+        const fill = colorByStatus(s);
         const tagHtml = s==='urgent'
           ? '<span class="tag tag-urgent">交換必須</span>'
           : s==='watch-yellow'
             ? '<span class="tag tag-watch-yellow">交換可能</span>'
             : '<span class="tag tag-watch-green">経過観測</span>';
 
-        const html=`
-          <div><strong>${name}</strong> ${tagHtml}</div>
-          <div style="margin-top:12px; line-height:1.7;">
-            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving"
-               target="_blank" rel="noopener">車経路（GoogleMAP）</a>
+        const html = `
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <strong>${name}</strong> ${tagHtml}
+          </div>
+          <div style="margin-top:10px">
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving" target="_blank" rel="noopener">車経路（GoogleMAP）</a>
           </div>`;
 
-        L.circleMarker([lat,lng],{
+        const m = L.circleMarker([lat,lng],{
           radius:radiusByCount(count), color:'#fff', weight:1.4,
           fillColor:fill, fillOpacity:.92
         }).bindPopup(html).addTo(markersLayer);
+
+        markerByKey.set(markerKey(item), m);
       }
 
+      // 更新日時
       const latest=(data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0]||'-';
       document.getElementById('updateTime').textContent=latest;
 
-      if(isDrawerOpen()) buildTable();
+      // 一覧へ反映
+      buildTable(classified);
     }
+
     function redrawLast(){ if(lastDataObj) render(lastDataObj); }
 
-    /* 自動取得：未読があるときだけボタン表示 */
+    // 初回ロード
+    (async()=>{ try{
+      lastDataJson = await fetchText('data.json?_=' + Date.now());
+      render(JSON.parse(lastDataJson));
+    }catch(e){ console.error(e); } })();
+
+    // 差分監視（5分ごと）— 未読があれば「更新」ボタン表示
     const refreshBtn   = document.getElementById('refreshBtn');
     const refreshBadge = document.getElementById('refreshBadge');
+
     async function pollData(){
       try{
-        const res=await fetch('data.json?_=' + Date.now());
-        if(!res.ok) return;
-        const txt=await res.text();
+        const txt = await fetchText('data.json?_=' + Date.now());
         if(txt===lastDataJson) return;
         pendingText = txt;
-        refreshBtn.style.display = 'inline-block';
-        refreshBadge.style.display = 'inline-block';
+        refreshBtn.style.display='inline-block';
+        refreshBadge.style.display='inline-block';
       }catch(e){ console.error(e); }
     }
-    setInterval(pollData, 300000);
+    setInterval(pollData, 300000); // 5分
 
+    // 「更新」押下で適用（地図位置は維持）
     refreshBtn.addEventListener('click', ()=>{
       if(!pendingText) return;
       const center=MAP.getCenter(), zoom=MAP.getZoom();
       lastDataJson = pendingText; pendingText="";
       const data=JSON.parse(lastDataJson);
-      withProgrammatic(()=>{ render(data); MAP.setView(center, zoom, { animate:false }); }, 400);
+      render(data);
+      MAP.setView(center, zoom, { animate:false });
       refreshBadge.style.display='none';
       refreshBtn.style.display='none';
     });
 
-    (async()=>{ try{
-      const res=await fetch('data.json?_=' + Date.now());
-      if(res.ok){ lastDataJson=await res.text(); render(JSON.parse(lastDataJson)); }
-    }catch(e){ console.error(e); } })();
-
-    /* 現在地（タップ直後のみ追従ON。ズーム/ドラッグでOFF） */
+    /* =============== 現在地（タップ直後だけ追従ON。ズーム/ドラッグでOFF） =============== */
     let meMarker=null, meCircle=null, watchId=null, lastMe=null, following=false;
-    const btn=document.getElementById('locateBtn');
+    const btnLocate=document.getElementById('locateBtn');
 
-    function updateFollowIcon(){ btn.classList.toggle('following',following); btn.classList.toggle('idle',!following); }
+    function updateFollowIcon(){ btnLocate.classList.toggle('following',following); btnLocate.classList.toggle('idle',!following); }
     function stopWatch(){ if(watchId){ navigator.geolocation.clearWatch(watchId); watchId=null; } }
 
     function showOrUpdateMe(lat,lng,acc){
@@ -292,12 +484,11 @@
         meCircle.setLatLng([lat,lng]).setRadius(acc||30);
       }
       lastMe={lat,lng};
-      if(following){ withProgrammatic(()=> MAP.panTo([lat,lng]), 400); }
+      if(following){ MAP.panTo([lat,lng]); }
     }
 
-    btn.addEventListener('click', ()=>{
+    btnLocate.addEventListener('click', ()=>{
       if(!('geolocation' in navigator)){ alert('位置情報が利用できません'); return; }
-
       following = true; updateFollowIcon();
       stopWatch();
       watchId = navigator.geolocation.watchPosition(
@@ -311,159 +502,160 @@
           const {latitude,longitude,accuracy}=pos.coords;
           showOrUpdateMe(latitude,longitude,accuracy);
           const z=15;
-          withProgrammatic(()=>{
-            if(MAP.getZoom()<z){ MAP.setView([latitude,longitude],z,{animate:true}); }
-            else { MAP.panTo([latitude,longitude],{animate:true}); }
-          }, 700);
+          if(MAP.getZoom()<z){ MAP.setView([latitude,longitude], z, { animate:true }); }
+          else { MAP.panTo([latitude,longitude], { animate:true }); }
         },
         err=>{
-          if(lastMe){
-            withProgrammatic(()=> MAP.panTo([lastMe.lat,lastMe.lng],{animate:true}), 500);
-          }else{
-            alert('現在地を取得できません：'+err.message);
-          }
+          if(lastMe){ MAP.panTo([lastMe.lat,lastMe.lng],{animate:true}); }
+          else{ alert('現在地を取得できません：'+err.message); }
         },
         { enableHighAccuracy:true, timeout:10000, maximumAge:5000 }
       );
     });
 
-    MAP.on('dragstart', ()=>{ if(!suppressUserOff && following){ following=false; updateFollowIcon(); stopWatch(); } });
-    MAP.on('zoomstart', ()=>{ if(!suppressUserOff && following){ following=false; updateFollowIcon(); stopWatch(); } });
+    // ズーム/ドラッグで追従OFF
+    MAP.on('dragstart', ()=>{ if(following){ following=false; updateFollowIcon(); stopWatch(); } });
+    MAP.on('zoomstart', ()=>{ if(following){ following=false; updateFollowIcon(); stopWatch(); } });
 
+    // 起動時：一度だけ現在地マーク（追従なし）
     if('geolocation' in navigator){
       navigator.geolocation.getCurrentPosition(
-        p=>{ const {latitude,longitude,accuracy}=p.coords; showOrUpdateMe(latitude,longitude,accuracy); },
+        pos=>{ const {latitude,longitude,accuracy}=pos.coords; showOrUpdateMe(latitude,longitude,accuracy); },
         ()=>{}, { enableHighAccuracy:true, timeout:10000 }
       );
     }
 
-    /* Tips */
+    /* =============== Tips（i） =============== */
     const tipBackdrop=document.getElementById('tipBackdrop');
     const tipBox=document.getElementById('tipBox');
     const tipAll=document.getElementById('tipAll');
     const tipHtml=`
       <span class="close" id="tipClose">×</span>
+
       <h4><span class="tag tag-urgent">交換必須</span></h4>
       <ul>
-        <li>最優先の交換対象ポート！中心地の駅周辺は当日交換必須</li>
-        <li>ＡＴ異常や長期電池切れ車両（ポート外含む）を厳選表示</li>
-        <li>表示定義「交換比重 6以上」または「交換台数 3台以上」</li>
+        <li>最優先の交換対象ポート（駅周辺は当日交換推奨）</li>
+        <li>長期電池切れ車両（ポート外含む）やAT異常を厳選表示</li>
+        <li>定義：交換比重 <b>6以上</b>／または 台数 <b>3台以上かつ比重6以上</b>／または <b>ポート外</b></li>
       </ul>
+
       <h4><span class="tag tag-watch-yellow">交換可能</span></h4>
       <ul>
-        <li>交換可能ポートは基本的に交換必須「40件未満」で巡回</li>
-        <li>但し「交換台数 4台以上」なら交換必須ポートの導線付近に限り現場判断で効率よく巡回をお願いいたします</li>
-        <li>交換必須「40件以上」なら起動時に☑チェックなし</li>
-        <li>表示定義「交換比重 5」または「交換台数 2台以上」</li>
+        <li>交換必須が40件未満のときに優先度中で対応</li>
+        <li>定義：台数 <b>3台以上</b>／または 台数 <b>2台以上</b>かつ <b>比重5</b></li>
       </ul>
+
       <h4><span class="tag tag-watch-green">経過観測</span></h4>
       <ul>
-        <li>経過観測は巡回不要、起動時に標準で☑チェックなし</li>
-        <li>表示定義「交換台数 2台」</li>
+        <li>原則巡回不要（状況に応じて現場判断）</li>
+        <li>定義：台数 <b>2台以上</b></li>
       </ul>
     `;
-    function openTips(){ tipBox.innerHTML=tipHtml; tipBackdrop.style.display='block'; tipBox.style.display='block'; document.getElementById('tipClose')?.addEventListener('click', closeTips); }
-    function closeTips(){ tipBackdrop.style.display='none'; tipBox.style.display='none'; }
+    function openTips(){
+      tipBox.innerHTML=tipHtml;
+      tipBackdrop.style.display='block';
+      tipBox.style.display='block';
+      document.getElementById('tipClose')?.addEventListener('click', closeTips);
+    }
+    function closeTips(){
+      tipBackdrop.style.display='none';
+      tipBox.style.display='none';
+    }
     tipAll.addEventListener('click', openTips);
     tipBackdrop.addEventListener('click', closeTips);
     document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeTips(); });
 
-    /* 一覧（ドロワー） */
-    const drawer = document.getElementById('drawer');
-    const menuBtn = document.getElementById('menuBtn');
-    const drawerClose = document.getElementById('drawerClose');
+    /* =============== 一覧ドロワー =============== */
+    const drawer     = document.getElementById('drawer');
+    const menuBtn    = document.getElementById('menuBtn');
+    const drawerClose= document.getElementById('drawerClose');
+
+    menuBtn.addEventListener('click', ()=>{ drawer.classList.add('open'); });
+    drawerClose.addEventListener('click', ()=>{ drawer.classList.remove('open'); });
+
+    // 一覧：検索＆ソート＆クリックでパン＆ポップ
     const qGlobal = document.getElementById('qGlobal');
-    let sortKey = 'weight', sortDir = 'desc';
-    const tbody = document.getElementById('portsTbody');
+    const tbody   = document.getElementById('portsTbody');
+    let sortKey='name', sortDir=0; // 0:なし 1:昇順 -1:降順
+    let tableRows=[]; // {name,weight,count,lat,lng,s}
 
-    function isDrawerOpen(){ return drawer.classList.contains('open'); }
-    function openDrawer(){ drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false'); document.documentElement.classList.add('no-hscroll'); document.body.classList.add('no-hscroll'); buildTable(); }
-    function closeDrawer(){ drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); document.documentElement.classList.remove('no-hscroll'); document.body.classList.remove('no-hscroll'); }
-    menuBtn.addEventListener('click', openDrawer);
-    drawerClose.addEventListener('click', closeDrawer);
-
-    // ソート：アイコンは ⇅ / ▲ / ▼ に統一
-    document.querySelectorAll('#portsTable thead th').forEach(th=>{
-      th.addEventListener('click', ()=>{
-        const key = th.getAttribute('data-key'); if(!key) return;
-        if(sortKey===key){ sortDir = (sortDir==='asc'?'desc':'asc'); } else { sortKey=key; sortDir='asc'; }
-        buildTable();
+    function buildTable(items){
+      // 現在のフィルタ状態に沿って「表示中のピンのみ」を表に出す
+      const visible = items.filter(r=>{
+        if(!r.s) return false;
+        if(r.s==='watch-yellow' && !chkYellow.checked) return false;
+        if(r.s==='watch-green'  && !chkGreen.checked)  return false;
+        return true;
       });
-    });
-    qGlobal.addEventListener('input', debounce(buildTable, 150));
+      tableRows = visible.map(r=>({ name:r.name, weight:+r.weight||0, count:+r.count||0, lat:r.lat, lng:r.lng, s:r.s }));
 
-    function getRowsFromData(){
-      const items = (lastDataObj?.items)||[];
-      return items.map(r=>({
-        name: r.name, updated: r.updated,
-        weight: Number(r.weight)||0,
-        count: Number(r.count)||0,
-        lat: Number(r.lat), lng: Number(r.lng)
-      }));
+      renderTable();
     }
 
-    function buildTable(){
-      const rows = getRowsFromData();
-      const q = qGlobal.value.trim().toLowerCase();
-
-      let filtered = rows.filter(row=>{
+    function renderTable(){
+      // 検索
+      const q = (qGlobal.value||'').trim().toLowerCase();
+      let rows = tableRows.filter(r=>{
         if(!q) return true;
-        const hay = [row.name, String(row.weight), String(row.count)].join(' ').toLowerCase();
-        return hay.includes(q);
+        return (r.name||'').toLowerCase().includes(q)
+            || String(r.weight).includes(q)
+            || String(r.count).includes(q);
       });
 
-      filtered.sort((a,b)=>{
-        const ka=a[sortKey], kb=b[sortKey];
-        let cmp=0;
-        if(sortKey==='name'){ cmp=String(ka).localeCompare(String(kb),'ja'); }
-        else { cmp=(ka===kb)?0:(ka<kb?-1:1); }
-        return sortDir==='asc'?cmp:-cmp;
-      });
-
-      // ソートアイコン更新
-      document.querySelectorAll('.sort').forEach(el=> el.textContent='⇅');
-      const sortEl = document.getElementById('sort-'+sortKey);
-      if(sortEl) sortEl.textContent = (sortDir==='asc'?'▲':'▼');
-
-      tbody.innerHTML = '';
-      const frag = document.createDocumentFragment();
-      for(const r of filtered){
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${escapeHtml(r.name)}</td>
-          <td class="nowrap">${r.weight}</td>
-          <td class="nowrap">${r.count}</td>
-        `;
-        tr.addEventListener('click', ()=>{
-          const status = statusOf(r.weight,r.count,r.name);
-          const tagHtml = status==='urgent'
-            ? '<span class="tag tag-urgent">交換必須</span>'
-            : status==='watch-yellow'
-              ? '<span class="tag tag-watch-yellow">交換可能</span>'
-              : '<span class="tag tag-watch-green">経過観測</span>';
-
-          const html=`
-            <div><strong>${escapeHtml(r.name)}</strong> ${tagHtml}</div>
-            <div style="margin-top:12px; line-height:1.7;">
-              <a href="https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}&travelmode=driving"
-                 target="_blank" rel="noopener">車経路（GoogleMAP）</a>
-            </div>`;
-
-          withProgrammatic(()=>{
-            MAP.flyTo([r.lat, r.lng], Math.max(MAP.getZoom(), 15), {animate:true, duration:0.8});
-            L.popup({offset:[0,-6]}).setLatLng([r.lat,r.lng]).setContent(html).openOn(MAP);
-          }, 800);
-
-          document.querySelectorAll('#portsTbody tr').forEach(row=>row.style.background='');
-          tr.style.background='#e6f0ff';
+      // ソート
+      if(sortKey){
+        rows.sort((a,b)=>{
+          const av=a[sortKey], bv=b[sortKey];
+          if(av<bv) return sortDir===-1 ? 1 : -1;
+          if(av>bv) return sortDir===-1 ? -1 : 1;
+          return 0;
         });
-        frag.appendChild(tr);
       }
-      tbody.appendChild(frag);
+
+      // 出力
+      tbody.innerHTML = rows.map(r=>{
+        // ステータス色の小丸（視認性用に先頭に付けられるようにしてもOK）
+        return `<tr data-lat="${r.lat}" data-lng="${r.lng}" data-name="${r.name.replace(/"/g,'&quot;')}">
+                  <td class="col-name">${r.name}</td>
+                  <td class="col-weight">${r.weight}</td>
+                  <td class="col-count">${r.count}</td>
+                </tr>`;
+      }).join('');
+
+      // 行クリックでパン＆そのポートのポップアップを開く
+      Array.from(tbody.querySelectorAll('tr')).forEach(tr=>{
+        tr.addEventListener('click', ()=>{
+          const lat = parseFloat(tr.getAttribute('data-lat'));
+          const lng = parseFloat(tr.getAttribute('data-lng'));
+          const name= tr.getAttribute('data-name');
+          const key = `${lat},${lng},${name}`;
+          const m = markerByKey.get(key);
+          if(m){
+            MAP.setView([lat,lng], Math.max(14, MAP.getZoom()), { animate:true });
+            m.openPopup();
+          }else{
+            MAP.setView([lat,lng], Math.max(14, MAP.getZoom()), { animate:true });
+          }
+        });
+      });
     }
 
-    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
-    function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+    // ヘッダクリックでソート
+    function setSort(key){
+      if(sortKey!==key){ sortKey=key; sortDir=1; }
+      else { sortDir = sortDir===1 ? -1 : (sortDir===-1 ? 0 : 1); }
+      // アイコン表示更新
+      document.getElementById('sort-name').textContent   = sortKey==='name'   ? (sortDir===1?'↑':(sortDir===-1?'↓':'⇅')):'⇅';
+      document.getElementById('sort-weight').textContent = sortKey==='weight' ? (sortDir===1?'↑':(sortDir===-1?'↓':'⇅')):'⇅';
+      document.getElementById('sort-count').textContent  = sortKey==='count'  ? (sortDir===1?'↑':(sortDir===-1?'↓':'⇅')):'⇅';
+      renderTable();
+    }
+    document.getElementById('th-name').addEventListener('click', ()=>setSort('name'));
+    document.getElementById('th-weight').addEventListener('click', ()=>setSort('weight'));
+    document.getElementById('th-count').addEventListener('click', ()=>setSort('count'));
+
+    qGlobal.addEventListener('input', ()=>renderTable());
+
   </script>
 </body>
 </html>
