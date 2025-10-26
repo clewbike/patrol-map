@@ -20,7 +20,7 @@
       padding:6px 7px; border-radius:9px;
       font:12px/1.35 "Segoe UI","Helvetica Neue",sans-serif;
       box-shadow:0 1px 6px rgba(0,0,0,.18);
-      width:145px;   /* ← 前回よりさらに小さく164pxから変更 */
+      width:145px;
     }
     .legend-row{
       display:grid;
@@ -32,13 +32,12 @@
     .legend-left{ display:flex; align-items:center; gap:4px; min-width:0; }
     .legend-dot{ font-weight:700; }
     .legend-count{
-      text-align:left;                /* ← 左寄せ */
+      text-align:left; /* 左寄せ */
       font-weight:700;
       font-variant-numeric: tabular-nums;
       letter-spacing:.01em;
     }
-    .legend-ctrl{ width:18px; display:flex; justify-content:flex-start; } /* ← 左寄せ */
-
+    .legend-ctrl{ width:18px; display:flex; justify-content:flex-start; } /* 左寄せ */
     input[type=checkbox]{ transform:scale(1.0); cursor:pointer; }
 
     /* 凡例 最下段：注意テキスト ＋ iボタン（右側） */
@@ -59,10 +58,7 @@
       flex:0 0 auto;
     }
     .tip-btn:active{ transform:scale(.96); }
-
-    #tipBackdrop{
-      position:fixed; inset:0; background:rgba(0,0,0,.25); display:none; z-index:1100;
-    }
+    #tipBackdrop{ position:fixed; inset:0; background:rgba(0,0,0,.25); display:none; z-index:1100; }
     #tipBox{
       position:absolute; left:10px; right:10px; bottom:10px; z-index:1110;
       background:#1f1f1fe6; color:#fff; padding:10px 12px;
@@ -72,9 +68,7 @@
     #tipBox h4{ margin:6px 0 6px; font-size:12.5px; display:flex; align-items:center; gap:8px; }
     #tipBox ul{ margin:0 0 8px 1.2em; padding:0; }
     #tipBox li{ margin:2px 0; }
-    #tipBox .close{
-      float:right; margin-left:8px; cursor:pointer; color:#ddd; font-weight:700;
-    }
+    #tipBox .close{ float:right; margin-left:8px; cursor:pointer; color:#ddd; font-weight:700; }
 
     /* ── 右下：更新時刻＋クレジット ─────────────────────── */
     #hud{
@@ -130,6 +124,44 @@
     .leaflet-control-zoom, .leaflet-control-attribution{ display:none !important; }
     .leaflet-div-icon{ background:transparent !important; border:none !important; }
     .me-dot{ width:12px; height:12px; border-radius:50%; background:#2c7be5; border:2px solid #fff; box-shadow:0 0 6px 2px rgba(44,123,229,0.5); pointer-events:none; }
+
+    /* ── 右上：メニュー（一覧） ── */
+    #menuBtn{
+      position:absolute; top:8px; right:8px; z-index:1000;
+      background:#fff; border:1px solid #ddd; border-radius:8px;
+      padding:6px 10px; font:12.5px/1 "Segoe UI","Helvetica Neue",sans-serif; cursor:pointer;
+      box-shadow:0 2px 6px rgba(0,0,0,.15);
+    }
+    #drawer{
+      position:absolute; top:0; right:0; bottom:0; width: min(520px, 92vw);
+      background:#fff; z-index:1200; box-shadow: -6px 0 16px rgba(0,0,0,.25);
+      transform: translateX(100%); transition: transform .25s ease; display:flex; flex-direction:column;
+    }
+    #drawer.open{ transform: translateX(0); }
+    .drawer-head{
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+      padding:10px 12px; border-bottom:1px solid #eee;
+    }
+    .drawer-head b{ font-size:14px; }
+    .drawer-close{ border:0; background:transparent; font-size:18px; cursor:pointer; padding:6px; }
+    .drawer-body{ padding:10px 12px; overflow:auto; }
+
+    .tbl-tools{ display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+    .tbl-tools input[type="text"]{
+      border:1px solid #ccc; border-radius:6px; padding:6px 8px; font-size:12px; width:180px;
+    }
+    .tbl{ width:100%; border-collapse:separate; border-spacing:0; font-size:12px; }
+    .tbl th, .tbl td{ padding:6px 8px; border-bottom:1px solid #eee; }
+    .tbl th{
+      position:sticky; top:0; background:#fafafa; z-index:1; cursor:pointer; user-select:none;
+      border-bottom:1px solid #e5e5e5;
+    }
+    .tbl th .sort{ font-size:10px; opacity:.6; margin-left:6px; }
+    .tbl .filters input{
+      width:100%; box-sizing:border-box; border:1px solid #ddd; border-radius:6px; padding:4px 6px; font-size:12px;
+    }
+    .muted{ color:#777; }
+    .nowrap{ white-space:nowrap; }
   </style>
 </head>
 <body>
@@ -166,6 +198,38 @@
       <div class="legend-note">交換必須「40件以上」は
 赤色ポートを優先巡回！</div>
       <button id="tipAll" class="tip-btn" title="定義を表示">i</button>
+    </div>
+  </div>
+
+  <!-- 右上：メニュー（一覧） -->
+  <button id="menuBtn">≡ 一覧</button>
+  <div id="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <b>ポート一覧</b>
+      <button class="drawer-close" id="drawerClose" title="閉じる">×</button>
+    </div>
+    <div class="drawer-body">
+      <div class="tbl-tools">
+        <input type="text" id="qGlobal" placeholder="🔎 キーワード検索（全列）">
+        <span class="muted">数値列は 例: <span class="nowrap">&gt;=3</span> <span class="nowrap">=5</span> <span class="nowrap">&lt;10</span> も可</span>
+      </div>
+      <table class="tbl" id="portsTable">
+        <thead>
+          <tr>
+            <th data-key="name">ポート名 <span class="sort" id="sort-name">↕</span></th>
+            <th data-key="updated">更新日時 <span class="sort" id="sort-updated">↕</span></th>
+            <th data-key="weight" class="nowrap">電池交換比重 <span class="sort" id="sort-weight">↕</span></th>
+            <th data-key="count" class="nowrap">目安交換台数(電池4以下) <span class="sort" id="sort-count">↕</span></th>
+          </tr>
+          <tr class="filters">
+            <th><input type="text" id="f-name" placeholder="部分一致"></th>
+            <th><input type="text" id="f-updated" placeholder="例: 2025-10-21"></th>
+            <th><input type="text" id="f-weight" placeholder="例: >=6"></th>
+            <th><input type="text" id="f-count" placeholder="例: >=3"></th>
+          </tr>
+        </thead>
+        <tbody id="portsTbody"><!-- 動的挿入 --></tbody>
+      </table>
     </div>
   </div>
 
@@ -215,12 +279,9 @@
     chkGreen .addEventListener('change', ()=>{ userTouchedGreen =true; redrawLast(); });
 
     /* ── ステータス判定（更新版） ──
-       ●交換必須（赤）：
-         - w>=6  または  (c>=3 かつ w>=6)  または  ポート外
-       ●交換可能（黄）：
-         - c>=3  または  (c>=2 かつ w==5)
-       ●経過観測（緑）：
-         - c>=2  （※比重は条件から除外）
+       ●交換必須（赤）： w>=6  または  (c>=3 かつ w>=6)  または  ポート外
+       ●交換可能（黄）： c>=3  または  (c>=2 かつ w==5)
+       ●経過観測（緑）： c>=2  （※比重は条件から除外）
     */
     function isAbandoned(name){
       return typeof name==='string' && name.includes('ポート外'); // 放置車両(ポート外)判定
@@ -296,6 +357,9 @@
 
       const latest=(data.items||[]).map(v=>v.updated).filter(Boolean).sort().reverse()[0]||'-';
       document.getElementById('updateTime').textContent=latest;
+
+      // 一覧が開いていたら再構築
+      if(isDrawerOpen()) buildTable();
     }
     function redrawLast(){ if(lastDataObj) render(lastDataObj); }
 
@@ -438,6 +502,154 @@
     tipAll.addEventListener('click', openTips);
     tipBackdrop.addEventListener('click', closeTips);
     document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeTips(); });
+
+    /* ── 一覧（右上ドロワー） ── */
+    const drawer = document.getElementById('drawer');
+    const menuBtn = document.getElementById('menuBtn');
+    const drawerClose = document.getElementById('drawerClose');
+    const qGlobal = document.getElementById('qGlobal');
+    const filters = {
+      name: document.getElementById('f-name'),
+      updated: document.getElementById('f-updated'),
+      weight: document.getElementById('f-weight'),
+      count: document.getElementById('f-count'),
+    };
+    let sortKey = 'updated', sortDir = 'desc'; // 既定：更新日時の新しい順
+    const tbody = document.getElementById('portsTbody');
+
+    function isDrawerOpen(){ return drawer.classList.contains('open'); }
+    function openDrawer(){ drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false'); buildTable(); }
+    function closeDrawer(){ drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); }
+
+    menuBtn.addEventListener('click', openDrawer);
+    drawerClose.addEventListener('click', closeDrawer);
+
+    // ヘッダクリックでソート
+    document.querySelectorAll('#portsTable thead th').forEach(th=>{
+      th.addEventListener('click', ()=>{
+        const key = th.getAttribute('data-key');
+        if(!key) return;
+        if(sortKey===key){ sortDir = (sortDir==='asc'?'desc':'asc'); }
+        else { sortKey=key; sortDir='asc'; }
+        buildTable();
+      });
+    });
+
+    // フィルタ/検索
+    qGlobal.addEventListener('input', debounce(buildTable, 150));
+    Object.values(filters).forEach(inp=> inp.addEventListener('input', debounce(buildTable, 150)));
+
+    function parseNumFilter(expr){
+      if(!expr) return null;
+      const m = expr.trim().match(/^(<=|>=|<|>|=)?\s*(-?\d+(?:\.\d+)?)$/);
+      if(!m) return null;
+      const op = m[1] || '=';
+      const val = parseFloat(m[2]);
+      return (n)=>{ n = Number(n); if(Number.isNaN(n)) return false;
+        if(op==='=') return n===val;
+        if(op==='>') return n>val;
+        if(op==='>=')return n>=val;
+        if(op==='<') return n<val;
+        if(op==='<=')return n<=val;
+        return true;
+      };
+    }
+
+    function getRowsFromData(){
+      const items = (lastDataObj?.items)||[];
+      return items.map(r=>({
+        name: r.name, updated: r.updated,
+        weight: Number(r.weight)||0,
+        count: Number(r.count)||0,
+        lat: Number(r.lat), lng: Number(r.lng)
+      }));
+    }
+
+    function buildTable(){
+      const rows = getRowsFromData();
+      const q = qGlobal.value.trim().toLowerCase();
+
+      const fName = filters.name.value.trim().toLowerCase();
+      const fUpdated = filters.updated.value.trim().toLowerCase();
+      const fWeight = parseNumFilter(filters.weight.value);
+      const fCount  = parseNumFilter(filters.count.value);
+
+      let filtered = rows.filter(row=>{
+        if(q){
+          const hay = [row.name, row.updated, String(row.weight), String(row.count)].join(' ').toLowerCase();
+          if(!hay.includes(q)) return false;
+        }
+        if(fName && !row.name.toLowerCase().includes(fName)) return false;
+        if(fUpdated && !String(row.updated).toLowerCase().includes(fUpdated)) return false;
+        if(fWeight && !fWeight(row.weight)) return false;
+        if(fCount  && !fCount(row.count))   return false;
+        return true;
+      });
+
+      // ソート
+      filtered.sort((a,b)=>{
+        const ka = a[sortKey], kb = b[sortKey];
+        let cmp = 0;
+        if(sortKey==='name' || sortKey==='updated'){
+          cmp = String(ka).localeCompare(String(kb), 'ja');
+        }else{
+          cmp = (ka===kb)?0:(ka<kb?-1:1);
+        }
+        return sortDir==='asc'?cmp:-cmp;
+      });
+
+      // ソート矢印更新
+      document.querySelectorAll('.sort').forEach(el=> el.textContent='↕');
+      const sortEl = document.getElementById('sort-'+sortKey);
+      if(sortEl) sortEl.textContent = (sortDir==='asc'?'↑':'↓');
+
+      // 描画
+      tbody.innerHTML = '';
+      const frag = document.createDocumentFragment();
+      for(const r of filtered){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(r.name)}</td>
+          <td class="nowrap">${escapeHtml(r.updated||'')}</td>
+          <td class="nowrap">${r.weight}</td>
+          <td class="nowrap">${r.count}</td>
+        `;
+        // ── 行クリック：パン＆ポップアップ ──
+        tr.addEventListener('click', ()=>{
+          // 対応するマーカー用HTML（ステータスから組み立て）
+          const status = statusOf(r.weight,r.count,r.name);
+          const fill = colorByStatus(status);
+          const tagHtml = status==='urgent'
+            ? '<span class="tag tag-urgent">交換必須</span>'
+            : status==='watch-yellow'
+              ? '<span class="tag tag-watch-yellow">交換可能</span>'
+              : '<span class="tag tag-watch-green">経過観測</span>';
+
+          const html=`
+            <div><strong>${escapeHtml(r.name)}</strong> ${tagHtml}</div>
+            <div style="margin-top:6px">電池交換比重: <span class="badge">${r.weight}</span></div>
+            <div>目安交換台数: <strong>${r.count}</strong></div>
+            <div style="margin-top:10px">
+              <a href="https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}&travelmode=driving" target="_blank" rel="noopener">車経路（GoogleMAP）</a>
+            </div>`;
+
+          withProgrammatic(()=>{
+            MAP.flyTo([r.lat, r.lng], Math.max(MAP.getZoom(), 15), {animate:true, duration:0.8});
+            L.popup({offset:[0,-6]}).setLatLng([r.lat,r.lng]).setContent(html).openOn(MAP);
+          }, 800);
+
+          // ハイライト
+          document.querySelectorAll('#portsTbody tr').forEach(row=>row.style.background='');
+          tr.style.background='#e6f0ff';
+        });
+
+        frag.appendChild(tr);
+      }
+      tbody.appendChild(frag);
+    }
+
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+    function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
   </script>
 </body>
 </html>
