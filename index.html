@@ -14,14 +14,15 @@
 :root{
   --ui-font:"Segoe UI","Helvetica Neue",sans-serif;
   --drawer-head-h:44px;
-  --tools-h:38px;
+  --links-h:44px;  /* フォーム2行ぶんの固定高さ */
+  --tools-h:40px;  /* 検索バーの固定高さ */
 }
 html,body{height:100%;margin:0;background:#f7f7f7;font-family:var(--ui-font);}
 html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
 #map{height:100%;}
 #legend-top,#hud,#menuBtn,#drawer,#refreshBtn,#locateFab,#tipBackdrop,#tipBox{touch-action:pan-y;}
 
-/* ── 左上：凡例（コンパクト） ───────────────────────── */
+/* ── 左上：凡例 ───────────────────────── */
 #legend-top{
   position:absolute; top:8px; left:8px; z-index:1000; user-select:none;
   background:rgba(255,255,255,.96);
@@ -43,7 +44,7 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
 }
 .tip-btn:active{transform:scale(.95);}
 
-/* ── Tips ─────────────────────────────────────────── */
+/* ── Tips ───────────────────────────────── */
 #tipBackdrop{position:fixed; inset:0; background:rgba(0,0,0,.25); display:none; z-index:1100;}
 #tipBox{
   position:absolute; left:10px; right:10px; bottom:10px; z-index:1110;
@@ -55,7 +56,7 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
 #tipBox li{margin:2px 0;}
 #tipBox .close{float:right; margin-left:8px; cursor:pointer; color:#ddd; font-weight:700;}
 
-/* ── 右下：更新時刻＋クレジット ───────────────────── */
+/* ── 右下：更新時刻＋クレジット ────────── */
 #hud{
   position:absolute; right:4px; bottom:4px; z-index:1000;
   display:flex; flex-direction:column; align-items:flex-end; gap:4px;
@@ -71,7 +72,7 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
 #credit{font:10px/1 var(--ui-font); color:#ddd; pointer-events:auto;}
 #credit a{color:#ddd; text-decoration:none;}
 
-/* ── 右下：未読あり更新ボタン ───────────────────── */
+/* ── 右下：未読あり更新ボタン ─────────── */
 #refreshBtn{
   position:absolute; right:8px; bottom:120px; z-index:1000;
   background:#fff; border:1px solid #ccc; border-radius:999px;
@@ -80,7 +81,7 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
 }
 #refreshBadge{display:none; margin-left:8px; width:8px; height:8px; border-radius:50%; background:#e60026; vertical-align:middle;}
 
-/* ── 現在地ボタン ─────────────────────────── */
+/* ── 現在地ボタン ───────────────────── */
 #locateFab{position:absolute; right:8px; bottom:64px; z-index:1000; pointer-events:auto;}
 .fab-btn{
   width:50px; height:50px; border-radius:50%; border:none; cursor:pointer; background:#fff;
@@ -94,7 +95,7 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
   pointer-events:none;
 }
 
-/* ── ハンバーガー ─────────────────────────── */
+/* ── ハンバーガー ───────────────────── */
 #menuBtn{
   position:absolute; top:8px; right:8px; z-index:1000;
   width:40px; height:40px; border-radius:10px;
@@ -104,23 +105,13 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
 }
 #menuBtn path{fill:#444;} #menuBtn:hover path{fill:#000;}
 
-/* タグ（ピンのラベルやTips見出しで利用） */
-.tag{
-  display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:bold; color:#fff; line-height:1;
-  vertical-align:middle;
-}
-.tag-urgent{background:#e60026;}
-.tag-watch-yellow{background:#ff8c00;}
-.tag-watch-green{background:#6fa86f;}
-
-/* ── ドロワー（一覧） ─────────────────────── */
+/* ── ドロワー（一覧） ───────────────── */
 #drawer{
   position:absolute; top:0; right:0; bottom:0; width:min(620px,94vw);
   background:#fff; z-index:1200; box-shadow:-6px 0 16px rgba(0,0,0,.25);
   transform:translateX(100%); transition:transform .25s ease;
   display:flex; flex-direction:column;
   font-family:var(--ui-font);
-  /* 縦スクロールのみ許可。横＆ピンチは抑止 */
   touch-action:pan-y; overflow-x:hidden !important;
 }
 #drawer.open{transform:translateX(0);}
@@ -137,19 +128,21 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
   touch-action:pan-y; overscroll-behavior-x:none;
 }
 
-/* フォームリンク（上部2行） */
+/* ▼ フォームリンク（固定 1段扱い・実体2行） */
 .links-block{
-  padding:4px 0 0; margin:0;
-  border-bottom:1px solid #e5e5e5;
-  font-size:12px; line-height:1.6;
+  position:sticky; top:var(--drawer-head-h); z-index:4;
+  background:#fff; border-bottom:1px solid #e5e5e5;
+  height:var(--links-h); display:flex; align-items:center;
+  gap:12px; padding:0; margin:0;
+  font-size:12px; line-height:1.4;
 }
-.links-block a{color:#000; text-decoration:underline;}
+.links-block a{color:#000; text-decoration:underline; white-space:nowrap;}
 
-/* 検索バー（sticky） */
+/* ▼ 検索バー（固定） */
 .tbl-tools{
-  position:sticky; top:var(--drawer-head-h); z-index:5;
+  position:sticky; top:calc(var(--drawer-head-h) + var(--links-h)); z-index:4;
   display:flex; gap:8px; align-items:center;
-  padding:6px 0; margin:0; background:#fff;
+  height:var(--tools-h); padding:0; margin:0; background:#fff;
   border-bottom:1px solid #e5e5e5;
 }
 .tbl-tools input[type="text"]{
@@ -157,15 +150,16 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
   font-family:var(--ui-font);
 }
 
-/* テーブル */
+/* ▼ テーブル（ヘッダー固定・隙間ゼロ） */
 .tbl{
   width:100%; margin:0; border-collapse:separate; border-spacing:0;
   font-size:12px; table-layout:fixed; font-family:var(--ui-font);
 }
 .tbl th,.tbl td{padding:6px 8px; border-bottom:1px solid #eee;}
 .tbl th{
-  position:sticky; top:calc(var(--drawer-head-h) + var(--tools-h) - 1px); z-index:4;
-  background:#fafafa; border-bottom:1px solid #e5e5e5; cursor:pointer; user-select:none;
+  position:sticky;
+  top:calc(var(--drawer-head-h) + var(--links-h) + var(--tools-h) - 1px);
+  z-index:3; background:#fafafa; border-bottom:1px solid #e5e5e5; cursor:pointer; user-select:none;
 }
 .tbl .col-name{width:50%;}
 .tbl .col-weight{width:25%;}
@@ -177,6 +171,12 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
 /* Leaflet 既定コントロール非表示 */
 .leaflet-control-zoom, .leaflet-control-attribution{display:none !important;}
 .leaflet-div-icon{background:transparent !important; border:none !important;}
+
+/* バッジ（ポップアップ/Tip） */
+.tag{display:inline-block; padding:2px 8px; border-radius:999px; font:11px/1 var(--ui-font); font-weight:bold; color:#fff;}
+.tag-urgent{background:#e60026;}
+.tag-watch-yellow{background:#ff8c00;}
+.tag-watch-green{background:#6fa86f;}
 </style>
 </head>
 <body>
@@ -217,15 +217,16 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
     <button class="drawer-close" id="drawerClose" aria-label="閉じる">×</button>
   </div>
   <div class="drawer-body">
+    <!-- 固定①：フォーム行（2リンク） -->
     <div class="links-block">
       <div>▼ <a href="https://forms.gle/76DsMzvctM4ajJt86" target="_blank" rel="noopener">ポート巡回報告フォーム</a></div>
       <div>▼ <a href="https://forms.gle/WTEwgx3QVEkprt176" target="_blank" rel="noopener">不具合・修理対応報告フォーム</a></div>
     </div>
-
+    <!-- 固定②：検索バー -->
     <div class="tbl-tools">
       <input type="text" id="qGlobal" placeholder="🔎 キーワード検索（ポート名/比重/台数）" aria-label="キーワード検索">
     </div>
-
+    <!-- 固定③：ヘッダー（thのstickyで固定）＋ 本文 -->
     <table class="tbl" id="portsTable">
       <thead>
         <tr>
@@ -328,9 +329,15 @@ function render(data){
     if(s==='watch-yellow' && !chkYellow.checked) continue;
     if(s==='watch-green'  && !chkGreen.checked)  continue;
 
-    const tag = s==='urgent' ? '交換必須' : s==='watch-yellow' ? '交換可能' : '経過観測';
+    const tagName = s==='urgent' ? '交換必須' : s==='watch-yellow' ? '交換可能' : '経過観測';
+    const tagClass = s==='urgent' ? 'tag-urgent' : s==='watch-yellow' ? 'tag-watch-yellow' : 'tag-watch-green';
+
+    // ★ ラベルを常に表示するポップアップ（消えない）
     const html = `
-      <div><strong>${it.name}</strong> <span class="tag ${s==='urgent'?'tag-urgent': s==='watch-yellow'?'tag-watch-yellow':'tag-watch-green'}">${tag}</span></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <strong>${it.name}</strong>
+        <span class="tag ${tagClass}">${tagName}</span>
+      </div>
       <div style="margin-top:10px">
         <a href="https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=driving" target="_blank" rel="noopener">車経路（GoogleMAP）</a>
       </div>`;
@@ -338,7 +345,7 @@ function render(data){
     const m = L.circleMarker([it.lat,it.lng], {
       radius: radiusByCount(it.count),
       color:'#fff', weight:1.4, fillColor:colorByStatus(s), fillOpacity:.92
-    }).bindPopup(html).addTo(markersLayer);
+    }).bindPopup(html, { autoPan:true, closeButton:true }).addTo(markersLayer);
 
     markerByKey.set(markerKey(it), m);
   }
@@ -439,7 +446,7 @@ drawerClose.addEventListener('click', ()=>{
   document.body.classList.remove('no-hscroll');
 });
 
-/* ── テーブル生成・検索・ソート・行クリック（パンのみ／ズーム固定） ── */
+/* テーブル生成・検索・ソート・行クリック（パンのみ／ズーム固定） */
 const qGlobal = document.getElementById('qGlobal');
 const tbody   = document.getElementById('portsTbody');
 let sortKey='name', sortDir=0, tableRows=[];
@@ -468,7 +475,7 @@ function renderTable(){
   tbody.innerHTML = rows.map(r=>`<tr data-lat="${r.lat}" data-lng="${r.lng}" data-name="${r.name}">
     <td>${r.name}</td><td>${r.weight}</td><td>${r.count}</td></tr>`).join('');
 
-  // 行クリック → パンのみ（ズーム不変）＋ポップアップ表示
+  // 行クリック → パンのみ（ズームは変えない）＆ポップアップ開く
   Array.from(tbody.querySelectorAll('tr')).forEach(tr=>{
     tr.addEventListener('click', ()=>{
       const lat = parseFloat(tr.dataset.lat), lng = parseFloat(tr.dataset.lng), name = tr.dataset.name;
@@ -491,7 +498,7 @@ document.getElementById('th-weight').addEventListener('click', ()=>setSort('weig
 document.getElementById('th-count' ).addEventListener('click', ()=>setSort('count'));
 qGlobal.addEventListener('input', renderTable);
 
-/* ── Tips内容（タグ付き見出し） ── */
+/* ── Tips内容 ── */
 const tipBackdrop=document.getElementById('tipBackdrop');
 const tipBox=document.getElementById('tipBox');
 const tipAll=document.getElementById('tipAll');
@@ -518,6 +525,10 @@ function closeTips(){ tipBackdrop.style.display='none'; tipBox.style.display='no
 tipAll.addEventListener('click', openTips);
 tipBackdrop.addEventListener('click', closeTips);
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeTips(); });
+
+/* ── マップ以外のピンチズーム/ctrl+wheelを抑止 ── */
+document.addEventListener('gesturestart', e=>{ if(!e.target.closest('#map')) e.preventDefault(); }, {passive:false});
+document.addEventListener('wheel', e=>{ if(e.ctrlKey && !e.target.closest('#map')) e.preventDefault(); }, {passive:false});
 </script>
 </body>
 </html>
