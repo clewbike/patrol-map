@@ -5,7 +5,7 @@ import { initMap, drawMarkers, panToAndOpen, getCenterZoom, setCenterZoom, getMa
 import { setTableData, renderTable, bindSortHeaders, bindSearch, setRowClickHandler } from './table.js';
 
 /*───────────────────────────────────────────────
-  エラー表示関数
+  エラー表示（ユーザー向け）
 ───────────────────────────────────────────────*/
 function showError(msg) {
   document.body.innerHTML = `
@@ -18,39 +18,43 @@ function showError(msg) {
 }
 
 /*───────────────────────────────────────────────
-  error.json チェックつき初回データロード
+  error.json を見てから data.json を読む初回ロード
 ───────────────────────────────────────────────*/
 async function loadInitialData() {
   try {
+    // 1) error.json（任意）にエラー通知があるか先にチェック
     const errRes = await fetch('./error.json', { cache: 'no-store' });
     if (errRes.ok) {
       const errData = await errRes.json();
-      if (errData?.error) {
-        showError(errData.message);
+      if (errData && errData.error) {
+        showError(errData.message || "データ取得のエラーが確認されました。開発者に確認してください。");
         return false;
       }
     }
-    
+
+    // 2) 通常データ
     const json = await loadData();
-    if (json?.error) {
-      showError(json.message);
+    if (json && json.error) {
+      showError(json.message || "データ取得のエラーが確認されました。開発者に確認してください。");
       return false;
     }
 
+    // 3) 初期描画（一覧 → マーカー）
     lastDataJsonText = JSON.stringify(json);
     classified = classify(json.items);
     setTableData(classified);
-    renderTable();
+    renderTable(); // setRowClickHandler を別で設定済みなので引数不要
     drawMarkers(classified, viewFilter());
     updateTime.textContent = latestUpdate(json.items);
 
-    // 念のための二重保険（classify内でsetCounts済みなら不要。気になるなら残す）
+    // （任意の保険）カウンタを再計算して反映
     const totals = {
       urgent: classified.filter(x => x.s === 'urgent').length,
       yellow: classified.filter(x => x.s === 'watch-yellow').length,
       green : classified.filter(x => x.s === 'watch-green').length,
     };
     setCounts(totals);
+
     return true;
   } catch (e) {
     console.error(e);
@@ -60,28 +64,27 @@ async function loadInitialData() {
 }
 
 /*───────────────────────────────────────────────
-  共通UI・状態管理
+  共通UI・状態
 ───────────────────────────────────────────────*/
-const chkYellow = document.getElementById('chk-yellow');
-const chkGreen  = document.getElementById('chk-green');
-const refreshBtn   = document.getElementById('refreshBtn');
-const refreshBadge = document.getElementById('refreshBadge');
-const updateTime   = document.getElementById('updateTime');
+const chkYellow   = document.getElementById('chk-yellow');
+const chkGreen    = document.getElementById('chk-green');
+const refreshBtn  = document.getElementById('refreshBtn');
+const refreshBadge= document.getElementById('refreshBadge');
+const updateTime  = document.getElementById('updateTime');
 
-let userTouchedYellow=false, userTouchedGreen=false;
-let lastDataJsonText = '';
-let classified = [];
+let userTouchedYellow = false;
+let userTouchedGreen  = false;
+let lastDataJsonText  = '';
+let classified        = [];
 
-/* 行クリックで地図をパン＆ポップアップ */
-window.__onRowClick = (lat,lng,name)=> panToAndOpen(lat,lng,name);
-
+/* 件数バッジ更新 */
 function setCounts(total){
   document.getElementById('cnt-urgent').textContent = String(total.urgent);
   document.getElementById('cnt-yellow').textContent = String(total.yellow);
   document.getElementById('cnt-green' ).textContent = String(total.green);
 }
 
-/* ステータス分類 */
+/* ステータス分類＋件数集計（マップ・一覧の元データ） */
 function classify(items){
   const total={urgent:0,yellow:0,green:0};
   const arr = (items||[]).map(r=>{
@@ -93,6 +96,7 @@ function classify(items){
   });
   setCounts(total);
 
+  // “赤40以上”なら、未操作時のみ黄/緑を既定OFF
   if(total.urgent>=40){
     if(!userTouchedYellow) chkYellow.checked=false;
     if(!userTouchedGreen)  chkGreen.checked=false;
@@ -100,20 +104,25 @@ function classify(items){
   return arr;
 }
 
+/* 表示フィルタ（凡例チェック） */
 function viewFilter(){ return { showYellow: chkYellow.checked, showGreen: chkGreen.checked }; }
-function redrawAll(){ drawMarkers(classified, viewFilter()); renderTable(); }
 
-/* ───────────────────────────────────────────────
-   現在地マーカー＆追従（堅牢版）
-────────────────────────────────────────────── */
+/* 再描画（マップ＋一覧） */
+function redrawAll(){
+  drawMarkers(classified, viewFilter());
+  renderTable(); // setRowClickHandler により行クリック→panは内部でバインド済み
+}
+
+/*───────────────────────────────────────────────
+  現在地マーカー＆追従（堅牢版）
+───────────────────────────────────────────────*/
 let meMarker = null;
 let meCircle = null;
-let watchId = null;
-let following = false;
+let watchId  = null;
+let following= false;
 const btnLocate = document.getElementById('locateBtn');
 
 function uiGeoNotice(msg){
-  // 目立ちすぎないミニバナー
   const id = 'geo-notice';
   if (document.getElementById(id)) return;
   const div = document.createElement('div');
@@ -123,7 +132,6 @@ function uiGeoNotice(msg){
   document.body.appendChild(div);
   setTimeout(()=> div.remove(), 5000);
 }
-
 function updateFollowIcon(){
   btnLocate.classList.toggle('following', following);
   btnLocate.classList.toggle('idle', !following);
@@ -131,7 +139,6 @@ function updateFollowIcon(){
 function stopWatch(){
   if (watchId){ navigator.geolocation.clearWatch(watchId); watchId = null; }
 }
-
 function showOrUpdateMe(lat,lng,acc){
   const MAP = getMap();
   if(!MAP) return;
@@ -147,48 +154,34 @@ function showOrUpdateMe(lat,lng,acc){
     meCircle.setLatLng([lat,lng]).setRadius(acc||30);
   }
 }
-
-/** HTTPS/localhost 以外なら false */
 function isSecureOrigin(){
   return location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 }
-
-/** 起動時に一度だけ現在地を表示（ズーム固定なし・+1段だけ任意拡大） */
+/* 起動時：一度だけ現在地をセンタリング（ズームは+1段だけ任意） */
 async function showMyLocationOnce({ center=true, gentleZoom=true, zoomStep=1 } = {}){
   try{
     if(!('geolocation' in navigator)){
-      console.debug('[geo] not supported');
-      uiGeoNotice('端末の位置情報に非対応です');
-      return;
+      uiGeoNotice('端末の位置情報に非対応です'); return;
     }
     if(!isSecureOrigin()){
-      console.debug('[geo] insecure origin');
-      uiGeoNotice('位置情報はHTTPSでのみ利用できます');
-      return;
+      uiGeoNotice('位置情報はHTTPSでのみ利用できます'); return;
     }
-
-    // Permission API（対応ブラウザのみ）
     try{
       if (navigator.permissions?.query){
         const st = await navigator.permissions.query({ name: 'geolocation' });
         if (st.state === 'denied'){
-          console.debug('[geo] permission denied');
           uiGeoNotice('位置情報の許可が必要です（ブラウザ設定を確認）');
           return;
         }
       }
-    }catch(e){ /* 古いブラウザ等は無視 */ }
+    }catch{ /* Permission API非対応は無視 */ }
 
     const MAP = getMap();
-    if (!MAP){
-      console.debug('[geo] map not ready yet'); // 念のため
-      return;
-    }
+    if (!MAP) return;
 
     navigator.geolocation.getCurrentPosition(
       pos=>{
         const { latitude, longitude, accuracy } = pos.coords;
-        console.debug('[geo] got position', { latitude, longitude, accuracy });
         showOrUpdateMe(latitude, longitude, accuracy);
         if (center){
           MAP.panTo([latitude, longitude], { animate:true });
@@ -198,10 +191,7 @@ async function showMyLocationOnce({ center=true, gentleZoom=true, zoomStep=1 } =
           }
         }
       },
-      err=>{
-        console.debug('[geo] getCurrentPosition error', err);
-        uiGeoNotice('現在地を取得できませんでした');
-      },
+      _err=> uiGeoNotice('現在地を取得できませんでした'),
       { enableHighAccuracy:true, timeout:10000, maximumAge:5000 }
     );
   }catch(e){
@@ -209,8 +199,7 @@ async function showMyLocationOnce({ center=true, gentleZoom=true, zoomStep=1 } =
     uiGeoNotice('現在地の取得中にエラーが発生しました');
   }
 }
-
-/** 追従開始 */
+/* 追従開始（ボタン） */
 function startFollow(){
   if(!('geolocation' in navigator)){ uiGeoNotice('端末の位置情報に非対応です'); return; }
   if(!isSecureOrigin()){ uiGeoNotice('位置情報はHTTPSでのみ利用できます'); return; }
@@ -226,8 +215,7 @@ function startFollow(){
         if (MAP) MAP.panTo([latitude, longitude], { animate:true });
       }
     },
-    err=>{
-      console.debug('[geo] watchPosition error', err);
+    _err=>{
       uiGeoNotice('現在地の追従に失敗しました');
       following = false; updateFollowIcon(); stopWatch();
     },
@@ -235,8 +223,7 @@ function startFollow(){
   );
 }
 btnLocate.addEventListener('click', startFollow);
-
-/** マップ操作で追従オフ */
+/* マップ操作で追従解除 */
 function bindMapStopFollow(){
   const MAP = getMap();
   if (!MAP) return;
@@ -245,28 +232,27 @@ function bindMapStopFollow(){
 }
 
 /*───────────────────────────────────────────────
-  初期化処理（完全版）
+  初期化（順序厳守）
 ───────────────────────────────────────────────*/
 async function init(){
   try {
-    // 1) 地図初期化（最初に必ず）
+    // 1) 地図初期化
     initMap();
 
-    // 2) マップ操作で追従解除のバインド（MAPができてから）
+    // 2) マップ操作で追従解除のバインド
     bindMapStopFollow();
 
     // 3) 起動時に現在地を一度だけセンタリング（ズームは+1段だけ任意）
     showMyLocationOnce({ center: true, gentleZoom: true, zoomStep: 1 });
 
-    // --- 以降は既存の処理 ---
-    // テーブルの行クリック → 地図パン＆ポップアップ
+    // 一覧の行クリック → 地図パン＆ポップアップ
     setRowClickHandler((lat,lng,name)=> panToAndOpen(lat,lng,name));
 
     // フィルタチェック変更で再描画
     chkYellow.addEventListener('change', ()=>{ userTouchedYellow = true; redrawAll(); });
     chkGreen .addEventListener('change', ()=>{ userTouchedGreen  = true; redrawAll(); });
 
-    // ドロワー
+    // ドロワー開閉
     const drawer = document.getElementById('drawer');
     document.getElementById('menuBtn').addEventListener('click', ()=>{
       drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false');
@@ -283,23 +269,23 @@ async function init(){
     const tipHtml = `
       <span class="close" id="tipClose">×</span>
       <h4><span class="tag tag-urgent">交換必須</span></h4>
-    <ul>
-      <li>最優先の交換対象ポート！中心地の駅周辺は当日交換必須</li>
-      <li>ＡＴ異常や長期電池切れ車両（ポート外含む）を厳選表示</li>
-      <li>表示定義「電池比重 6以上」または「交換目安 3台以上」</li>
-    </ul>
-    <h4><span class="tag tag-watch-yellow">交換可能</span></h4>
-    <ul>
-      <li>交換可能ポートは基本的に交換必須「40件未満」で巡回</li>
-      <li>但し交換必須ポートの導線付近に限り現場判断で効率よく巡回をお願いいたします</li>
-      <li>交換必須「40件以上」なら起動時に☑チェックなし</li>
-      <li>表示定義「電池比重 5」または「交換目安 2台以上」</li>
-    </ul>
-    <h4><span class="tag tag-watch-green">経過観測</span></h4>
-    <ul>
-      <li>経過観測は巡回不要、起動時に標準で☑チェックなし</li>
-      <li>表示定義「交換目安 2台」</li>
-    </ul>`;
+      <ul>
+        <li>最優先の交換対象ポート！中心地の駅周辺は当日交換必須</li>
+        <li>ＡＴ異常や長期電池切れ車両（ポート外含む）を厳選表示</li>
+        <li>表示定義「電池比重 6以上」または「交換目安 3台以上」</li>
+      </ul>
+      <h4><span class="tag tag-watch-yellow">交換可能</span></h4>
+      <ul>
+        <li>交換可能ポートは基本的に交換必須「40件未満」で巡回</li>
+        <li>但し交換必須ポートの導線付近に限り現場判断で効率よく巡回をお願いいたします</li>
+        <li>交換必須「40件以上」なら起動時に☑チェックなし</li>
+        <li>表示定義「電池比重 5」または「交換目安 2台以上」</li>
+      </ul>
+      <h4><span class="tag tag-watch-green">経過観測</span></h4>
+      <ul>
+        <li>経過観測は巡回不要、起動時に標準で☑チェックなし</li>
+        <li>表示定義「交換目安 2台」</li>
+      </ul>`;
     document.getElementById('tipAll').addEventListener('click', ()=>{
       tipBox.innerHTML=tipHtml; tipBackdrop.style.display='block'; tipBox.style.display='block';
       document.getElementById('tipClose')?.addEventListener('click', closeTips);
@@ -308,7 +294,7 @@ async function init(){
     tipBackdrop.addEventListener('click', closeTips);
     document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeTips(); });
 
-    // ズーム抑止
+    // ズーム抑止（マップ以外）
     document.addEventListener('gesturestart', e=>{ if(!e.target.closest('#map')) e.preventDefault(); }, {passive:false});
     document.addEventListener('wheel', e=>{ if(e.ctrlKey && !e.target.closest('#map')) e.preventDefault(); }, {passive:false});
 
@@ -319,7 +305,7 @@ async function init(){
     // 初回ロード（エラーハンドリング込み）
     await loadInitialData();
 
-    // ポーリング
+    // ポーリング（差分があれば更新ボタンを出す）
     startPolling((txt)=>{
       if (txt !== lastDataJsonText) {
         refreshBtn.style.display='inline-block';
@@ -328,13 +314,14 @@ async function init(){
       }
     });
 
-    // 更新ボタン
+    // 更新ボタン：中心/ズーム維持で再描画
     refreshBtn.addEventListener('click', async ()=>{
       try{
         const { center, zoom } = getCenterZoom();
         const data = JSON.parse(lastDataJsonText);
         classified = classify(data.items);
         setTableData(classified);
+        renderTable();
         drawMarkers(classified, viewFilter());
         setCenterZoom(center, zoom);
         updateTime.textContent = latestUpdate(data.items);
