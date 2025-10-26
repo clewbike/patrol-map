@@ -472,6 +472,17 @@ function buildTable(items){
   renderTable();
 }
 
+  // ▼ 初期表示は「電池比重→台数」の降順で並べ替え
+  sortKey = 'weight';
+  sortDir = -1; // 降順
+  renderTable();
+
+  // ▼ ソート矢印（↓）を初期状態で反映
+  document.getElementById('sort-name'  ).textContent = '⇅';
+  document.getElementById('sort-weight').textContent = '↓';
+  document.getElementById('sort-count' ).textContent = '⇅';
+}
+
 /* ── テーブル描画 ── */
 function renderTable(){
   const q = qGlobal.value.trim().toLowerCase();
