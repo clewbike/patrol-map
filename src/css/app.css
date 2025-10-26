@@ -148,12 +148,20 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
   top:calc(var(--links-h) + var(--tools-h) - 1px);
   z-index:3; background:#fafafa; border-bottom:1px solid #e5e5e5; cursor:pointer; user-select:none;
 }
-.tbl .col-name{width:45%;}
-.tbl .col-weight{width:20%;}
+.tbl .col-name{width:44%;}
+.tbl .col-weight{width:21%;}
 .tbl .col-count{width:35%;}
 .tbl th .sort{font-size:11px; opacity:.7; margin-left:4px; vertical-align:middle;}
 #portsTbody tr{cursor:pointer;}
 #portsTbody tr:hover{background:#f7faff;}
+
+/* 電池比重・目安交換台数列を中央寄せ */
+#portsTable th:nth-child(2),
+#portsTable td:nth-child(2),
+#portsTable th:nth-child(3),
+#portsTable td:nth-child(3) {
+  text-align: center;
+}
 
 /* Leaflet 既定コントロール非表示 */
 .leaflet-control-zoom, .leaflet-control-attribution{display:none !important;}
