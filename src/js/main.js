@@ -193,21 +193,41 @@ async function showMyLocationOnce({ center=true, gentleZoom=false, zoomStep=1 } 
 }
 /* 追従開始（ボタン） */
 function startFollow(){
-  if(!('geolocation' in navigator)){ uiGeoNotice('端末の位置情報に非対応です'); return; }
-  if(!isSecureOrigin()){ uiGeoNotice('位置情報はHTTPSでのみ利用できます'); return; }
+  if(!('geolocation' in navigator)){
+    uiGeoNotice('端末の位置情報に非対応です'); return;
+  }
+  if(!isSecureOrigin()){
+    uiGeoNotice('位置情報はHTTPSでのみ利用できます'); return;
+  }
 
-  following = true; updateFollowIcon();
+  following = true;
+  updateFollowIcon();
   stopWatch();
+
+  // --- まず即時1回取得（ウォームアップ） ---
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { latitude, longitude, accuracy } = pos.coords;
+      showOrUpdateMe(latitude, longitude, accuracy);
+      const MAP = getMap();
+      if (MAP) MAP.setView([latitude, longitude], MAP.getZoom(), { animate:false });
+    },
+    _ => console.warn('[geo] initial position failed'),
+    { enableHighAccuracy:true, timeout:5000, maximumAge:0 }
+  );
+
+  // --- 継続追従を開始 ---
   watchId = navigator.geolocation.watchPosition(
-    p=>{
+    p => {
       const { latitude, longitude, accuracy } = p.coords;
       showOrUpdateMe(latitude, longitude, accuracy);
       if (following){
         const MAP = getMap();
-        if (MAP) MAP.panTo([latitude, longitude], { animate:true });
+        if (MAP) MAP.panTo([latitude, longitude], { animate:false });
       }
     },
-    _err=>{
+    err => {
+      console.debug('[geo] watchPosition error', err);
       uiGeoNotice('現在地の追従に失敗しました');
       following = false; updateFollowIcon(); stopWatch();
     },
