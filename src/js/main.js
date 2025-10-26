@@ -30,7 +30,7 @@ async function loadInitialData() {
         return false;
       }
     }
-
+    
     const json = await loadData();
     if (json?.error) {
       showError(json.message);
@@ -42,6 +42,20 @@ async function loadInitialData() {
     setTableData(classified);
     drawMarkers(classified, viewFilter());
     updateTime.textContent = latestUpdate(json.items);
+    lastDataJsonText = JSON.stringify(json);
+    classified = classify(json.items);      // ← ここで setCounts(total) を内部で呼んでいる前提
+    setTableData(classified);
+    renderTable();                          // ← 一覧のDOMを生成（setRowClickHandler方式なら引数不要）
+    drawMarkers(classified, viewFilter());  // ← 地図マーカー描画
+    updateTime.textContent = latestUpdate(json.items);
+
+    // 念のための二重保険（classify内でsetCounts済みなら不要。気になるなら残す）
+    const totals = {
+      urgent: classified.filter(x => x.s === 'urgent').length,
+      yellow: classified.filter(x => x.s === 'watch-yellow').length,
+      green : classified.filter(x => x.s === 'watch-green').length,
+    };
+    setCounts(totals);
     return true;
   } catch (e) {
     console.error(e);
