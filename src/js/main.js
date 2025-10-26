@@ -141,25 +141,28 @@ function showOrUpdateMe(lat,lng,acc){
   }
 }
 
-/* 起動時に一度だけ現在地を表示（デフォルト＝パンしない） */
-function showMyLocationOnce({ pan=false, targetZoom=15, quickPanMs=800 } = {}){
+/* 起動時に一度だけ現在地を表示
+   - ズーム固定(targetZoom)はしない
+   - 現在地の中央に"だけ"パン
+   - オプションで +1 段だけやさしく拡大（gentleZoom）
+*/
+function showMyLocationOnce({ center=true, gentleZoom=true, zoomStep=1 } = {}){
   if(!('geolocation' in navigator)) return;
-
-  let didQuickPan = false;
-  const t = setTimeout(() => { didQuickPan = true; }, quickPanMs); // “すぐ取れたときだけ素早くパン”の判定
-
   navigator.geolocation.getCurrentPosition(
     pos=>{
-      clearTimeout(t);
       const { latitude, longitude, accuracy } = pos.coords;
       showOrUpdateMe(latitude, longitude, accuracy);
-
-      // すぐ取れた＆pan指定のときだけ軽くパン（or ズーム）
-      if (pan && !didQuickPan) return; // 遅れて取れたならパンしない
       const MAP = getMap();
-      if (MAP && pan){
-        if (MAP.getZoom() < targetZoom) MAP.setView([latitude, longitude], targetZoom, { animate:true });
-        else MAP.panTo([latitude, longitude], { animate:true });
+      if (!MAP) return;
+      if (center){
+        // まずは現在地の中心へ“静かに”移動（ズーム値は変えない）
+        MAP.panTo([latitude, longitude], { animate:true });
+        // 必要なら +1 段だけ拡大（現在のズームに対して相対的に）
+        if (gentleZoom){
+          const target = Math.min(MAP.getZoom() + Math.max(1, zoomStep), 19);
+          // パンのアニメ直後に少しズーム（時間差で自然に見える）
+          setTimeout(()=> MAP.setZoom(target, { animate:true }), 200);
+        }
       }
     },
     err=>{ console.warn('getCurrentPosition error:', err); },
