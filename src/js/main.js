@@ -103,14 +103,26 @@ function classify(items){
 function viewFilter(){ return { showYellow: chkYellow.checked, showGreen: chkGreen.checked }; }
 function redrawAll(){ drawMarkers(classified, viewFilter()); renderTable(); }
 
-/*───────────────────────────────────────────────
-  現在地マーカー＆追従
-───────────────────────────────────────────────*/
+/* ───────────────────────────────────────────────
+   現在地マーカー＆追従（堅牢版）
+────────────────────────────────────────────── */
 let meMarker = null;
 let meCircle = null;
 let watchId = null;
 let following = false;
 const btnLocate = document.getElementById('locateBtn');
+
+function uiGeoNotice(msg){
+  // 目立ちすぎないミニバナー
+  const id = 'geo-notice';
+  if (document.getElementById(id)) return;
+  const div = document.createElement('div');
+  div.id = id;
+  div.style.cssText = 'position:absolute;left:8px;bottom:8px;background:#fff;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font:12px/1.4 system-ui;box-shadow:0 2px 6px rgba(0,0,0,.12);z-index:1500;';
+  div.textContent = msg;
+  document.body.appendChild(div);
+  setTimeout(()=> div.remove(), 5000);
+}
 
 function updateFollowIcon(){
   btnLocate.classList.toggle('following', following);
@@ -136,38 +148,73 @@ function showOrUpdateMe(lat,lng,acc){
   }
 }
 
-/* 起動時に一度だけ現在地を表示
-   - ズーム固定(targetZoom)はしない
-   - 現在地の中央に"だけ"パン
-   - オプションで +1 段だけやさしく拡大（gentleZoom）
-*/
-function showMyLocationOnce({ center=true, gentleZoom=true, zoomStep=1 } = {}){
-  if(!('geolocation' in navigator)) return;
-  navigator.geolocation.getCurrentPosition(
-    pos=>{
-      const { latitude, longitude, accuracy } = pos.coords;
-      showOrUpdateMe(latitude, longitude, accuracy);
-      const MAP = getMap();
-      if (!MAP) return;
-      if (center){
-        // まずは現在地の中心へ“静かに”移動（ズーム値は変えない）
-        MAP.panTo([latitude, longitude], { animate:true });
-        // 必要なら +1 段だけ拡大（現在のズームに対して相対的に）
-        if (gentleZoom){
-          const target = Math.min(MAP.getZoom() + Math.max(1, zoomStep), 19);
-          // パンのアニメ直後に少しズーム（時間差で自然に見える）
-          setTimeout(()=> MAP.setZoom(target, { animate:true }), 200);
-        }
-      }
-    },
-    err=>{ console.warn('getCurrentPosition error:', err); },
-    { enableHighAccuracy:true, timeout:10000, maximumAge:5000 }
-  );
+/** HTTPS/localhost 以外なら false */
+function isSecureOrigin(){
+  return location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 }
 
-/* 追従開始 */
+/** 起動時に一度だけ現在地を表示（ズーム固定なし・+1段だけ任意拡大） */
+async function showMyLocationOnce({ center=true, gentleZoom=true, zoomStep=1 } = {}){
+  try{
+    if(!('geolocation' in navigator)){
+      console.debug('[geo] not supported');
+      uiGeoNotice('端末の位置情報に非対応です');
+      return;
+    }
+    if(!isSecureOrigin()){
+      console.debug('[geo] insecure origin');
+      uiGeoNotice('位置情報はHTTPSでのみ利用できます');
+      return;
+    }
+
+    // Permission API（対応ブラウザのみ）
+    try{
+      if (navigator.permissions?.query){
+        const st = await navigator.permissions.query({ name: 'geolocation' });
+        if (st.state === 'denied'){
+          console.debug('[geo] permission denied');
+          uiGeoNotice('位置情報の許可が必要です（ブラウザ設定を確認）');
+          return;
+        }
+      }
+    }catch(e){ /* 古いブラウザ等は無視 */ }
+
+    const MAP = getMap();
+    if (!MAP){
+      console.debug('[geo] map not ready yet'); // 念のため
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      pos=>{
+        const { latitude, longitude, accuracy } = pos.coords;
+        console.debug('[geo] got position', { latitude, longitude, accuracy });
+        showOrUpdateMe(latitude, longitude, accuracy);
+        if (center){
+          MAP.panTo([latitude, longitude], { animate:true });
+          if (gentleZoom){
+            const target = Math.min(MAP.getZoom() + Math.max(1, zoomStep), 19);
+            setTimeout(()=> MAP.setZoom(target, { animate:true }), 200);
+          }
+        }
+      },
+      err=>{
+        console.debug('[geo] getCurrentPosition error', err);
+        uiGeoNotice('現在地を取得できませんでした');
+      },
+      { enableHighAccuracy:true, timeout:10000, maximumAge:5000 }
+    );
+  }catch(e){
+    console.error('[geo] unexpected error', e);
+    uiGeoNotice('現在地の取得中にエラーが発生しました');
+  }
+}
+
+/** 追従開始 */
 function startFollow(){
-  if(!('geolocation' in navigator)){ alert('位置情報が利用できません'); return; }
+  if(!('geolocation' in navigator)){ uiGeoNotice('端末の位置情報に非対応です'); return; }
+  if(!isSecureOrigin()){ uiGeoNotice('位置情報はHTTPSでのみ利用できます'); return; }
+
   following = true; updateFollowIcon();
   stopWatch();
   watchId = navigator.geolocation.watchPosition(
@@ -179,13 +226,17 @@ function startFollow(){
         if (MAP) MAP.panTo([latitude, longitude], { animate:true });
       }
     },
-    err=>{ console.warn('watchPosition error:', err); },
+    err=>{
+      console.debug('[geo] watchPosition error', err);
+      uiGeoNotice('現在地の追従に失敗しました');
+      following = false; updateFollowIcon(); stopWatch();
+    },
     { enableHighAccuracy:true, maximumAge:5000 }
   );
 }
 btnLocate.addEventListener('click', startFollow);
 
-/* ユーザーがマップ操作したら追従解除 */
+/** マップ操作で追従オフ */
 function bindMapStopFollow(){
   const MAP = getMap();
   if (!MAP) return;
