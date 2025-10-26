@@ -458,6 +458,20 @@ let sortKey = 'weight';  // 電池比重を基準に
 let sortDir = -1;        // 降順（大きい→小さい）
 let tableRows = [];
 
+/* ── 一覧データ生成（JSON→tableRows）── */
+function buildTable(items){
+  // JSON からテーブル用データを抽出
+  tableRows = (items || []).map(r => ({
+    name: r.name,
+    weight: Number(r.weight) || 0,
+    count: Number(r.count) || 0,
+    lat: r.lat,
+    lng: r.lng,
+    s: r.s ?? null
+  }));
+  renderTable();
+}
+
 /* ── テーブル描画 ── */
 function renderTable(){
   const q = qGlobal.value.trim().toLowerCase();
