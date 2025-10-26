@@ -468,8 +468,8 @@ function buildTable(items){
 /* renderTable 内のソートロジックを改良 */
 function renderTable(){
   const q = qGlobal.value.trim().toLowerCase();
-  let rows = tableRows.filter(r=>
-    !q || (r.name.toLowerCase().includes(q) || String(r.weight).includes(q) || String(r.count).includes(q))
+  let rows = tableRows.filter(r =>
+    !q || r.name.toLowerCase().includes(q)
   );
 
   // 並び替えロジック（複合ソート対応）
