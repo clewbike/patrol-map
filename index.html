@@ -128,9 +128,10 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
   touch-action:pan-y; overscroll-behavior-x:none;
 }
 
-/* ▼ フォームリンク（固定 1段扱い・実体2行） */
+/* ▼ フォームリンク（固定 1段扱い・実体2行）
+   ★ 修正：top を 0 に（ヘッダー分のオフセットを削除） */
 .links-block{
-  position:sticky; top:var(--drawer-head-h); z-index:4;
+  position:sticky; top:0; z-index:4;        /* ← 変更 */
   background:#fff; border-bottom:1px solid #e5e5e5;
   height:var(--links-h); display:flex; align-items:center;
   gap:12px; padding:0; margin:0;
@@ -138,9 +139,10 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
 }
 .links-block a{color:#000; text-decoration:underline; white-space:nowrap;}
 
-/* ▼ 検索バー（固定） */
+/* ▼ 検索バー（固定）
+   ★ 修正：前段の高さだけ積み上げ。ヘッダー分は入れない */
 .tbl-tools{
-  position:sticky; top:calc(var(--drawer-head-h) + var(--links-h)); z-index:4;
+  position:sticky; top:var(--links-h); z-index:4;   /* ← 変更 */
   display:flex; gap:8px; align-items:center;
   height:var(--tools-h); padding:0; margin:0; background:#fff;
   border-bottom:1px solid #e5e5e5;
@@ -150,7 +152,8 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
   font-family:var(--ui-font);
 }
 
-/* ▼ テーブル（ヘッダー固定・隙間ゼロ） */
+/* ▼ テーブル（ヘッダー固定・隙間ゼロ）
+   ★ 修正：th の top も同様に積み上げのみ */
 .tbl{
   width:100%; margin:0; border-collapse:separate; border-spacing:0;
   font-size:12px; table-layout:fixed; font-family:var(--ui-font);
@@ -158,7 +161,7 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
 .tbl th,.tbl td{padding:6px 8px; border-bottom:1px solid #eee;}
 .tbl th{
   position:sticky;
-  top:calc(var(--drawer-head-h) + var(--links-h) + var(--tools-h) - 1px);
+  top:calc(var(--links-h) + var(--tools-h) - 1px);   /* ← 変更 */
   z-index:3; background:#fafafa; border-bottom:1px solid #e5e5e5; cursor:pointer; user-select:none;
 }
 .tbl .col-name{width:50%;}
@@ -276,11 +279,7 @@ let userTouchedYellow=false, userTouchedGreen=false;
 chkYellow.addEventListener('change', ()=>{ userTouchedYellow=true; redrawLast(); });
 chkGreen .addEventListener('change', ()=>{ userTouchedGreen =true; redrawLast(); });
 
-/* ── ステータス判定 ──
-   交換必須（赤）   : w>=6 または (c>=3 かつ w>=6) または "ポート外" を含む
-   交換可能（黄）   : c>=3 または (c>=2 かつ w==5)
-   経過観測（緑）   : c>=2
-*/
+/* ── ステータス判定 ── */
 function isAbandoned(name){ return typeof name==='string' && name.includes('ポート外'); }
 function statusOf(weight,count,name){
   const w = Number(weight)||0, c = Number(count)||0;
@@ -332,7 +331,6 @@ function render(data){
     const tagName = s==='urgent' ? '交換必須' : s==='watch-yellow' ? '交換可能' : '経過観測';
     const tagClass = s==='urgent' ? 'tag-urgent' : s==='watch-yellow' ? 'tag-watch-yellow' : 'tag-watch-green';
 
-    // ★ ラベルを常に表示するポップアップ（消えない）
     const html = `
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <strong>${it.name}</strong>
