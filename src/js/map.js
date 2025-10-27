@@ -111,15 +111,20 @@ export function setCenterZoom(center, zoom){ MAP.setView(center, zoom, { animate
   const style = document.createElement('style');
   style.textContent = `
     /* 交換必須 → 淡い赤 */
-    .leaflet-popup.popup-urgent .leaflet-popup-content-wrapper {
+    .leaflet-popup.popup-urgent .leaflet-popup-content-wrapper,
+    .leaflet-popup.popup-urgent .leaflet-popup-tip {
       background-color: #ffe5e5;
     }
+
     /* 交換可能 → 淡い黄 */
-    .leaflet-popup.popup-yellow .leaflet-popup-content-wrapper {
+    .leaflet-popup.popup-yellow .leaflet-popup-content-wrapper,
+    .leaflet-popup.popup-yellow .leaflet-popup-tip {
       background-color: #fff6d9;
     }
+
     /* 経過観測 → 淡い緑 */
-    .leaflet-popup.popup-green .leaflet-popup-content-wrapper {
+    .leaflet-popup.popup-green .leaflet-popup-content-wrapper,
+    .leaflet-popup.popup-green .leaflet-popup-tip {
       background-color: #e8f5e9;
     }
 
