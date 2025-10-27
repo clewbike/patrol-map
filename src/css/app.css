@@ -121,7 +121,7 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
   background:#fff; border-bottom:1px solid #e5e5e5;
   height:var(--links-h); display:flex; align-items:center;
   gap:12px; padding:0; margin:0;
-  font-size:12px; line-height:1.4;
+  font-size: 14px; line-height:1.4;
 }
 .links-block a{color:#000; text-decoration:underline; white-space:nowrap;}
 
@@ -187,3 +187,10 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
 .error-container p {
   line-height: 1.6;
 }
+/* ポップアップ内ボタン風 */
+.leaflet-popup-content .popup-btn{
+  display:inline-block; padding:6px 10px; border-radius:6px; border:1px solid #ddd;
+  background:#fff; font:12px var(--ui-font); cursor:pointer; text-decoration:none;
+}
+.leaflet-popup-content .popup-btn.link{ text-decoration:none; }
+.leaflet-popup-content .popup-btn:active{ transform:scale(.98); }
