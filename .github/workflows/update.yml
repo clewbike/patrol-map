@@ -30,7 +30,7 @@ jobs:
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
-          RANGE: "GoogleMAPプロット用!A:E"
+          RANGE: "GoogleMAPプロット用!A:F"
         run: |
           python build.py
           # ✅ error.json が無ければ正常状態で作る（404防止）
