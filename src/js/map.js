@@ -58,8 +58,8 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
         <span class="tag ${tagClass}">${tagName}</span>
       </div>
       <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="popup-btn" data-lat="${it.lat}" data-lng="${it.lng}">JawgMAPで経路</button>
-        <a class="popup-btn link" href="https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=driving" target="_blank" rel="noopener">Googleマップ</a>
+        <button class="popup-btn" data-lat="${it.lat}" data-lng="${it.lng}">🚗 Jawg経路</button>
+        <a class="popup-btn link" href="https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=driving" target="_blank" rel="noopener">🗺️ Googleマップ</a>
       </div>`;
 
     const m = L.circleMarker([it.lat,it.lng], {
