@@ -18,7 +18,6 @@ const jawgSunnyUrl =
 const jawgOpts = {
   minZoom: 12,
   maxZoom: 17,
-  // ← ここは上で定義したトークン変数を使う
   accessToken: JAWG_ACCESS_TOKEN,
   attribution:
     '<a href="https://jawg.io" target="_blank" rel="noopener">© <b>Jawg</b> Maps</a> ' +
@@ -59,7 +58,7 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
     if (s==='watch-yellow' && !showYellow) continue;
     if (s==='watch-green'  && !showGreen)  continue;
 
-    // ポップアップ内容（背景は付けず、wrapper側を色替え）
+    // ポップアップ内容（住所はリンクなし）
     const html = `
       <div style="padding:8px 10px; font-size:13px; max-width:230px;">
         <div style="font-weight:600; font-size:14px; margin-bottom:3px;">
@@ -88,7 +87,6 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
     .bindPopup(html, {
       autoPan: true,
       closeButton: true,
-      // 状態に応じて .leaflet-popup にクラスを付与
       className: popupClassByStatus(s)
     })
     .addTo(markersLayer);
