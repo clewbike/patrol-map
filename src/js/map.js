@@ -4,7 +4,6 @@ import { colorByStatus, radiusByCount } from './status.js';
 let MAP;
 let markersLayer;
 const markerByKey = new Map();
-let routeLayer = null;
 
 /** Map生成 */
 // ★ Jawg Sunny（ラスタ）＋ 京都だけ見える設定
@@ -57,9 +56,8 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
         <strong>${it.name}</strong>
         <span class="tag ${tagClass}">${tagName}</span>
       </div>
-      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="popup-btn" data-lat="${it.lat}" data-lng="${it.lng}">JawgMAPで経路</button>
-        <a class="popup-btn link" href="https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=driving" target="_blank" rel="noopener">Googleマップ</a>
+      <div style="margin-top:10px">
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=driving" target="_blank" rel="noopener">車経路（GoogleMAP）</a>
       </div>`;
 
     const m = L.circleMarker([it.lat,it.lng], {
@@ -71,32 +69,6 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
   }
 }
 
-
-async function routeToOnMap(destLat, destLng){
-  try{
-    if (!('geolocation' in navigator)) { alert('この端末では位置情報が使えません'); return; }
-    // 現在地を一度だけ取得
-    const pos = await new Promise((resolve, reject)=>{
-      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy:true, timeout:10000, maximumAge:5000 });
-    });
-    const { latitude:origLat, longitude:origLng } = pos.coords;
-    // OSRMで車ルートを取得
-    const url = `https://router.project-osrm.org/route/v1/driving/${origLng},${origLat};${destLng},${destLat}?overview=full&geometries=geojson`;
-    const res = await fetch(url);
-    const data = await res.json();
-    const coords = data?.routes?.[0]?.geometry?.coordinates;
-    if (!coords) { alert('ルートが取得できませんでした'); return; }
-    if (routeLayer) { routeLayer.remove(); routeLayer = null; }
-    const latlngs = coords.map(([lng,lat]) => [lat,lng]);
-    routeLayer = L.polyline(latlngs, { weight:5, opacity:0.9 }).addTo(MAP);
-    MAP.fitBounds(routeLayer.getBounds(), { padding:[40,40] });
-    // 経路開始 → 追従ONを司令塔に通知
-    document.dispatchEvent(new Event('startFollow'));
-  }catch(e){
-    console.error(e);
-    alert('経路の描画に失敗しました');
-  }
-}
 export function panToAndOpen(lat,lng,name){
   const m = markerByKey.get(`${lat},${lng},${name}`);
   if (MAP){ MAP.panTo([lat,lng], { animate:true }); if (m) m.openPopup(); }
