@@ -56,8 +56,16 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
         <strong>${it.name}</strong>
         <span class="tag ${tagClass}">${tagName}</span>
       </div>
-      <div style="margin-top:10px">
-        <a href="https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=driving" target="_blank" rel="noopener">車経路（GoogleMAP）</a>
+      <div style="margin-top:4px; font-size:12.5px; color:#444;">
+        ${it.address || ''}
+      </div>
+      <div style="margin-top:10px;">
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(it.address || '')}&travelmode=driving"
+           target="_blank" rel="noopener"
+           style="display:inline-block;background:#2c7be5;color:#fff;padding:6px 10px;border-radius:6px;
+                  text-decoration:none;font-size:12.5px;">
+          🗺 GoogleMAP
+        </a>
       </div>`;
 
     const m = L.circleMarker([it.lat,it.lng], {
