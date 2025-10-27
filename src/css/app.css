@@ -201,3 +201,11 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
 /* ラベルボタン行を詰めて並べる */
 .links-block{ gap:8px; }
 .links-block > div{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+
+/* ポップアップ内ボタン風 */
+.leaflet-popup-content .popup-btn{
+  display:inline-block; padding:6px 10px; border-radius:6px; border:1px solid #ddd;
+  background:#fff; font:12px var(--ui-font); cursor:pointer; text-decoration:none;
+}
+.leaflet-popup-content .popup-btn.link{ text-decoration:none; }
+.leaflet-popup-content .popup-btn:active{ transform:scale(.98); }
