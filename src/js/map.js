@@ -45,9 +45,9 @@ export function markerKey(it){ return `${it.lat},${it.lng},${it.name}`; }
  * 'urgent' | 'watch-yellow' | 'watch-green'
  */
 function popupClassByStatus(s){
-  return s === 'urgent' ? 'custom-popup-urgent'
-       : s === 'watch-yellow' ? 'custom-popup-yellow'
-       : 'custom-popup-green';
+  return s === 'urgent' ? 'popup-urgent'
+       : s === 'watch-yellow' ? 'popup-yellow'
+       : 'popup-green';
 }
 
 export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
@@ -78,21 +78,20 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
         </div>
       </div>`;
 
-    const m = L.circleMarker([it.lat,it.lng], {
+    const m = L.circleMarker([it.lat, it.lng], {
       radius: radiusByCount(it.count),
       color:'#fff',
       weight:1.4,
       fillColor: colorByStatus(s),
       fillOpacity:.92
     })
-    }).bindPopup(html, {
+    .bindPopup(html, {
       autoPan: true,
       closeButton: true,
       // 状態に応じて .leaflet-popup にクラスを付与
-      className: (s==='urgent') ? 'popup-urgent'
-              : (s==='watch-yellow') ? 'popup-yellow'
-              : 'popup-green'
-    }).addTo(markersLayer);
+      className: popupClassByStatus(s)
+    })
+    .addTo(markersLayer);
 
     markerByKey.set(markerKey(it), m);
   }
