@@ -46,7 +46,7 @@ def main():
             "住所",
             "更新日時",
             "電池交換比重",
-            "目安交換台数(電池4以下)",
+            "目安交換台数",
         ]
         for r in required:
             if r not in header:
@@ -58,7 +58,7 @@ def main():
         i_addr   = header.index("住所")
         i_upd    = header.index("更新日時")
         i_w      = header.index("電池交換比重")
-        i_cnt    = header.index("目安交換台数(電池4以下)")
+        i_cnt    = header.index("目安交換台数")
 
         items = []
         for r in rows:
