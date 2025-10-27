@@ -18,6 +18,7 @@ const jawgSunnyUrl =
 const jawgOpts = {
   minZoom: 12,
   maxZoom: 17,
+  // ← ここは上で定義したトークン変数を使う
   accessToken: JAWG_ACCESS_TOKEN,
   attribution:
     '<a href="https://jawg.io" target="_blank" rel="noopener">© <b>Jawg</b> Maps</a> ' +
@@ -39,14 +40,13 @@ export function initMap() {
 export function getMap() { return MAP; }
 export function markerKey(it){ return `${it.lat},${it.lng},${it.name}`; }
 
-/**
- * 状態 → ポップアップ用クラス名
- * 'urgent' | 'watch-yellow' | 'watch-green'
- */
-function popupClassByStatus(s){
-  return s === 'urgent' ? 'popup-urgent'
-       : s === 'watch-yellow' ? 'popup-yellow'
-       : 'popup-green';
+/** 状態→表示用ラベル */
+function tagInfoByStatus(s){
+  return s === 'urgent'
+    ? { name: '交換必須',     class: 'tag-urgent' }
+    : s === 'watch-yellow'
+    ? { name: '交換可能',     class: 'tag-watch-yellow' }
+    : { name: '経過観測',     class: 'tag-watch-green' };
 }
 
 export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
@@ -58,9 +58,16 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
     if (s==='watch-yellow' && !showYellow) continue;
     if (s==='watch-green'  && !showGreen)  continue;
 
-    // ポップアップ内容（住所はリンクなし）
+    const { name: tagName, class: tagClass } = tagInfoByStatus(s);
+
+    // ポップアップ内容（白い吹き出し。順序：ラベル→ポート名→住所→GoogleMAP）
     const html = `
       <div style="padding:8px 10px; font-size:13px; max-width:230px;">
+        <div style="margin-bottom:6px;">
+          <span class="tag ${tagClass}" style="display:inline-block;padding:2px 6px;border-radius:4px;font-weight:700;font-size:12px;">
+            ${tagName}
+          </span>
+        </div>
         <div style="font-weight:600; font-size:14px; margin-bottom:3px;">
           ${it.name}
         </div>
@@ -70,8 +77,8 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
         <div style="text-align:left;">
           <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(it.address || `${it.lat},${it.lng}`)}&travelmode=driving"
              target="_blank" rel="noopener"
-             style="display:inline-block;background:#fff;color:#000;padding:6px 10px;border-radius:6px;
-                    border:1px solid #ccc;text-decoration:none;font-size:12.5px;font-weight:600;">
+             style="display:inline-block;background:#2c7be5;color:#fff;padding:6px 10px;border-radius:6px;
+                    border:1px solid #2c7be5;text-decoration:none;font-size:12.5px;font-weight:700;">
             GoogleMAP
           </a>
         </div>
@@ -85,9 +92,9 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
       fillOpacity:.92
     })
     .bindPopup(html, {
-      autoPan: true,
-      closeButton: true,
-      className: popupClassByStatus(s)
+      autoPan: false,        // ← ポップアップで勝手にズレない
+      closeButton: true
+      // className は付けず（白い標準吹き出しのまま）
     })
     .addTo(markersLayer);
 
@@ -97,40 +104,11 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
 
 export function panToAndOpen(lat,lng,name){
   const m = markerByKey.get(`${lat},${lng},${name}`);
-  if (MAP){ MAP.panTo([lat,lng], { animate:true }); if (m) m.openPopup(); }
+  if (!MAP) return;
+  // ズームはそのまま、中心だけ移動
+  MAP.setView([lat,lng], MAP.getZoom(), { animate: true });
+  if (m) m.openPopup();
 }
+
 export function getCenterZoom(){ return { center: MAP.getCenter(), zoom: MAP.getZoom() }; }
 export function setCenterZoom(center, zoom){ MAP.setView(center, zoom, { animate:false }); }
-
-/*───────────────────────────────────────────────
-  状態別の吹き出し背景を Leaflet 側に適用（CSSを使わずJSで注入）
-───────────────────────────────────────────────*/
-(function injectPopupStyles(){
-  const style = document.createElement('style');
-  style.textContent = `
-    /* 交換必須 → 淡い赤 */
-    .leaflet-popup.popup-urgent .leaflet-popup-content-wrapper,
-    .leaflet-popup.popup-urgent .leaflet-popup-tip {
-      background-color: #ffe5e5;
-    }
-
-    /* 交換可能 → 淡い黄 */
-    .leaflet-popup.popup-yellow .leaflet-popup-content-wrapper,
-    .leaflet-popup.popup-yellow .leaflet-popup-tip {
-      background-color: #fff6d9;
-    }
-
-    /* 経過観測 → 淡い緑 */
-    .leaflet-popup.popup-green .leaflet-popup-content-wrapper,
-    .leaflet-popup.popup-green .leaflet-popup-tip {
-      background-color: #e8f5e9;
-    }
-
-    /* 全体の見た目（角丸・影）は軽く統一）*/
-    .leaflet-popup-content-wrapper {
-      border-radius: 12px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.20);
-    }
-  `;
-  document.head.appendChild(style);
-})();
