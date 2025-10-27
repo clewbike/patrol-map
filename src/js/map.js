@@ -40,39 +40,36 @@ export function initMap() {
 export function getMap() { return MAP; }
 export function markerKey(it){ return `${it.lat},${it.lng},${it.name}`; }
 
+/**
+ * 状態 → ポップアップ用クラス名
+ * 'urgent' | 'watch-yellow' | 'watch-green'
+ */
+function popupClassByStatus(s){
+  return s === 'urgent' ? 'custom-popup-urgent'
+       : s === 'watch-yellow' ? 'custom-popup-yellow'
+       : 'custom-popup-green';
+}
+
 export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
   markerByKey.clear();
   markersLayer.clearLayers();
+
   for (const it of classifiedItems) {
     const s = it.s; if (!s) continue;
     if (s==='watch-yellow' && !showYellow) continue;
     if (s==='watch-green'  && !showGreen)  continue;
 
-    const tagName  = s==='urgent'?'交換必須' : s==='watch-yellow'?'交換可能':'経過観測';
-    const tagClass = s==='urgent'?'tag-urgent': s==='watch-yellow'?'tag-watch-yellow':'tag-watch-green';
-
-    // 背景色を状態で決定
-    let bgColor = '#e8f5e9'; // 経過観測（緑系）
-    if (it.weight >= 4) bgColor = '#ffe5e5'; // 交換必須（赤系）
-    else if (it.weight === 3) bgColor = '#fff6d9'; // 交換可能（黄系）
-    
+    // ポップアップ内容（背景は付けず、wrapper側を色替え）
     const html = `
-      <div style="
-        background: ${bgColor};
-        border-radius: 10px;
-        padding: 10px 12px;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        font-size: 13px;
-        max-width: 230px;
-      ">
+      <div style="padding:8px 10px; font-size:13px; max-width:230px;">
         <div style="font-weight:600; font-size:14px; margin-bottom:3px;">
           ${it.name}
         </div>
         <div style="color:#333; margin-bottom:10px;">
           ${it.address || ''}
         </div>
-        <div style="text-align:right;">
-          <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(it.address || '')}&travelmode=driving"
+        <div style="text-align:left;">
+          <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(it.address || `${it.lat},${it.lng}`)}&travelmode=driving"
              target="_blank" rel="noopener"
              style="display:inline-block;background:#fff;color:#000;padding:6px 10px;border-radius:6px;
                     border:1px solid #ccc;text-decoration:none;font-size:12.5px;font-weight:600;">
@@ -83,8 +80,17 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
 
     const m = L.circleMarker([it.lat,it.lng], {
       radius: radiusByCount(it.count),
-      color:'#fff', weight:1.4, fillColor: colorByStatus(s), fillOpacity:.92
-    }).bindPopup(html, { autoPan:true, closeButton:true }).addTo(markersLayer);
+      color:'#fff',
+      weight:1.4,
+      fillColor: colorByStatus(s),
+      fillOpacity:.92
+    })
+    .bindPopup(html, {
+      autoPan:true,
+      closeButton:true,
+      className: popupClassByStatus(s) // ← 状態ごとに背景色クラスを付与
+    })
+    .addTo(markersLayer);
 
     markerByKey.set(markerKey(it), m);
   }
@@ -96,3 +102,30 @@ export function panToAndOpen(lat,lng,name){
 }
 export function getCenterZoom(){ return { center: MAP.getCenter(), zoom: MAP.getZoom() }; }
 export function setCenterZoom(center, zoom){ MAP.setView(center, zoom, { animate:false }); }
+
+/*───────────────────────────────────────────────
+  状態別の吹き出し背景を Leaflet 側に適用（CSSを使わずJSで注入）
+───────────────────────────────────────────────*/
+(function injectPopupStyles(){
+  const style = document.createElement('style');
+  style.textContent = `
+    /* 交換必須 → 淡い赤 */
+    .leaflet-popup-content-wrapper.custom-popup-urgent {
+      background-color: #ffe5e5;
+    }
+    /* 交換可能 → 淡い黄 */
+    .leaflet-popup-content-wrapper.custom-popup-yellow {
+      background-color: #fff6d9;
+    }
+    /* 経過観測 → 淡い緑 */
+    .leaflet-popup-content-wrapper.custom-popup-green {
+      background-color: #e8f5e9;
+    }
+    /* 全体の見た目（角丸・影）は軽く統一）*/
+    .leaflet-popup-content-wrapper {
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.20);
+    }
+  `;
+  document.head.appendChild(style);
+})();
