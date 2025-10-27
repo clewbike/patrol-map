@@ -22,36 +22,26 @@ function showError(msg) {
 ───────────────────────────────────────────────*/
 async function loadInitialData() {
   try {
-    // 1) error.json を参考までに読む（ただし "参考" 扱い）
-    let earlyErrorMsg = "";
-    try {
-      const errRes = await fetch('./error.json', { cache: 'no-store' });
-      if (errRes.ok) {
-        const errData = await errRes.json();
-        if (errData && errData.error) {
-          earlyErrorMsg = errData.message || "データ取得のエラーが確認されました。開発者に確認してください。";
-        }
-      }
-    } catch(_){ /* ignore */ }
+    // data.json と error.json を並列で取得（data.json を優先採用）
+    const [dataRes, errRes] = await Promise.allSettled([
+      loadData(), 
+      fetch('./error.json', { cache: 'no-store' }).then(r=> r.ok ? r.json() : null)
+    ]);
 
-    // 2) 通常データ（こちらを優先判定）
-    const json = await loadData().catch(()=>null);
+    const json = (dataRes.status === 'fulfilled') ? dataRes.value : null;
+    const err  = (errRes.status  === 'fulfilled') ? errRes.value : null;
 
-    if (!json || json.error) {
-      // data.json 自体が取得失敗 → error.json にメッセージがあれば表示、なければ汎用
-      showError(earlyErrorMsg || (json && json.message) || "データ取得のエラーが確認されました。開発者に確認してください。");
-      return false;
+    // 1) data.json が正常で items あり → 正常描画（error.json は無視）
+    if (json && Array.isArray(json.items) && json.items.length > 0) {
+      window.__LATEST_JSON__ = json; // デバッグ用
+      return true;
     }
 
-    // items が取れていれば error.json の内容は無視して継続
-    if (!json.items || !Array.isArray(json.items) || json.items.length === 0){
-      // データが空のときのみ、error.json があれば出す
-      if (earlyErrorMsg) { showError(earlyErrorMsg); return false; }
-      showError("データが空でした。開発者に確認してください。");
-      return false;
-    }
-
-    // 3) 一覧＆マップへ反映（従来処理）
+    // 2) data.json 失敗 or 空 → error.json に従ってメッセージ表示
+    const message = (json && json.message) || (err && err.error && err.message) || 
+      "データ取得のエラーが確認されました。開発者に確認してください。";
+    showError(message);
+    return false;
   } catch (e) {
     console.error(e);
     showError("データの取得中にエラーが発生しました。開発者に確認してください。");
@@ -59,7 +49,8 @@ async function loadInitialData() {
   }
 }
 
-/*───────────────────────────────────────────────
+{/*───────────────────────────────────────────────*/
+───────────────────────────────
   共通UI・状態
 ───────────────────────────────────────────────*/
 const chkYellow   = document.getElementById('chk-yellow');
@@ -257,6 +248,7 @@ function bindMapStopFollow(){
 /*───────────────────────────────────────────────
   初期化（順序厳守）
 ───────────────────────────────────────────────*/
+window.addEventListener('follow-request', ()=>{ try{ startFollow(); }catch(_){} });
 async function init(){
   try {
     // 1) 地図初期化
@@ -266,7 +258,8 @@ async function init(){
     bindMapStopFollow();
 
     // 3) 起動時に現在地を一度だけセンタリング（ズームは+1段だけ任意）
-    showMyLocationOnce({ center:true, gentleZoom:false });
+    // 初回の自動測位はUX/パフォ違反回避のため削除。ユーザー操作時に開始。
+// showMyLocationOnce({ center:true, gentleZoom:false });
 
     // 一覧の行クリック → 地図パン＆ポップアップ
     setRowClickHandler((lat,lng,name)=> panToAndOpen(lat,lng,name));
