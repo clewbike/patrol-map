@@ -51,32 +51,32 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
     const tagName  = s==='urgent'?'交換必須' : s==='watch-yellow'?'交換可能':'経過観測';
     const tagClass = s==='urgent'?'tag-urgent': s==='watch-yellow'?'tag-watch-yellow':'tag-watch-green';
 
-// 枠線カラーを状態で決定
-let borderColor = '#5bc0de'; // 経過観測（青）
-if (it.weight >= 4) borderColor = '#e55353'; // 交換必須（赤）
-else if (it.weight === 3) borderColor = '#f0ad4e'; // 交換可能（橙）
-
+    // 背景色を状態で決定
+    let bgColor = '#e8f5e9'; // 経過観測（緑系）
+    if (it.weight >= 4) bgColor = '#ffe5e5'; // 交換必須（赤系）
+    else if (it.weight === 3) bgColor = '#fff6d9'; // 交換可能（黄系）
+    
     const html = `
       <div style="
-        border: 2.5px solid ${borderColor};
+        background: ${bgColor};
         border-radius: 10px;
         padding: 10px 12px;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         font-size: 13px;
         max-width: 230px;
       ">
         <div style="font-weight:600; font-size:14px; margin-bottom:3px;">
           ${it.name}
         </div>
-        <div style="color:#444; margin-bottom:8px;">
+        <div style="color:#333; margin-bottom:10px;">
           ${it.address || ''}
         </div>
         <div style="text-align:right;">
           <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(it.address || '')}&travelmode=driving"
              target="_blank" rel="noopener"
-             style="display:inline-block;background:#2c7be5;color:#fff;padding:6px 10px;border-radius:6px;
-                    text-decoration:none;font-size:12.5px;font-weight:600;letter-spacing:0.3px;">
-            <strong>GoogleMAP</strong>
+             style="display:inline-block;background:#fff;color:#000;padding:6px 10px;border-radius:6px;
+                    border:1px solid #ccc;text-decoration:none;font-size:12.5px;font-weight:600;">
+            GoogleMAP
           </a>
         </div>
       </div>`;
