@@ -51,21 +51,34 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
     const tagName  = s==='urgent'?'交換必須' : s==='watch-yellow'?'交換可能':'経過観測';
     const tagClass = s==='urgent'?'tag-urgent': s==='watch-yellow'?'tag-watch-yellow':'tag-watch-green';
 
+// 枠線カラーを状態で決定
+let borderColor = '#5bc0de'; // 経過観測（青）
+if (it.weight >= 4) borderColor = '#e55353'; // 交換必須（赤）
+else if (it.weight === 3) borderColor = '#f0ad4e'; // 交換可能（橙）
+
     const html = `
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <strong>${it.name}</strong>
-        <span class="tag ${tagClass}">${tagName}</span>
-      </div>
-      <div style="margin-top:4px; font-size:12.5px; color:#444;">
-        ${it.address || ''}
-      </div>
-      <div style="margin-top:10px;">
-        <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(it.address || '')}&travelmode=driving"
-           target="_blank" rel="noopener"
-           style="display:inline-block;background:#2c7be5;color:#fff;padding:6px 10px;border-radius:6px;
-                  text-decoration:none;font-size:12.5px;">
-          🗺 GoogleMAP
-        </a>
+      <div style="
+        border: 2.5px solid ${borderColor};
+        border-radius: 10px;
+        padding: 10px 12px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        font-size: 13px;
+        max-width: 230px;
+      ">
+        <div style="font-weight:600; font-size:14px; margin-bottom:3px;">
+          ${it.name}
+        </div>
+        <div style="color:#444; margin-bottom:8px;">
+          ${it.address || ''}
+        </div>
+        <div style="text-align:right;">
+          <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(it.address || '')}&travelmode=driving"
+             target="_blank" rel="noopener"
+             style="display:inline-block;background:#2c7be5;color:#fff;padding:6px 10px;border-radius:6px;
+                    text-decoration:none;font-size:12.5px;font-weight:600;letter-spacing:0.3px;">
+            <strong>GoogleMAP</strong>
+          </a>
+        </div>
       </div>`;
 
     const m = L.circleMarker([it.lat,it.lng], {
