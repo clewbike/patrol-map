@@ -73,6 +73,8 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
       const btn = el?.querySelector('.popup-btn');
       if (btn) {
         btn.addEventListener('click', () => {
+          // 先に追従開始（ユーザー操作の同期スタック内）
+          window.dispatchEvent(new Event('follow-request'));
           const dlat = Number(btn.getAttribute('data-lat'));
           const dlng = Number(btn.getAttribute('data-lng'));
           routeToOnMap(dlat, dlng);
