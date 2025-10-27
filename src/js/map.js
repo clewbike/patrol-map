@@ -85,12 +85,14 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
       fillColor: colorByStatus(s),
       fillOpacity:.92
     })
-    .bindPopup(html, {
-      autoPan:true,
-      closeButton:true,
-      className: popupClassByStatus(s) // ← 状態ごとに背景色クラスを付与
-    })
-    .addTo(markersLayer);
+    }).bindPopup(html, {
+      autoPan: true,
+      closeButton: true,
+      // 状態に応じて .leaflet-popup にクラスを付与
+      className: (s==='urgent') ? 'popup-urgent'
+              : (s==='watch-yellow') ? 'popup-yellow'
+              : 'popup-green'
+    }).addTo(markersLayer);
 
     markerByKey.set(markerKey(it), m);
   }
@@ -110,17 +112,18 @@ export function setCenterZoom(center, zoom){ MAP.setView(center, zoom, { animate
   const style = document.createElement('style');
   style.textContent = `
     /* 交換必須 → 淡い赤 */
-    .leaflet-popup-content-wrapper.custom-popup-urgent {
+    .leaflet-popup.popup-urgent .leaflet-popup-content-wrapper {
       background-color: #ffe5e5;
     }
     /* 交換可能 → 淡い黄 */
-    .leaflet-popup-content-wrapper.custom-popup-yellow {
+    .leaflet-popup.popup-yellow .leaflet-popup-content-wrapper {
       background-color: #fff6d9;
     }
     /* 経過観測 → 淡い緑 */
-    .leaflet-popup-content-wrapper.custom-popup-green {
+    .leaflet-popup.popup-green .leaflet-popup-content-wrapper {
       background-color: #e8f5e9;
     }
+
     /* 全体の見た目（角丸・影）は軽く統一）*/
     .leaflet-popup-content-wrapper {
       border-radius: 12px;
