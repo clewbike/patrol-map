@@ -58,8 +58,8 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
         <span class="tag ${tagClass}">${tagName}</span>
       </div>
       <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="popup-btn" data-lat="${it.lat}" data-lng="${it.lng}">🚗 Jawg経路</button>
-        <a class="popup-btn link" href="https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=driving" target="_blank" rel="noopener">🗺️ Googleマップ</a>
+        <button class="popup-btn" data-lat="${it.lat}" data-lng="${it.lng}">JawgMAPで経路</button>
+        <a class="popup-btn link" href="https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=driving" target="_blank" rel="noopener">Googleマップ</a>
       </div>`;
 
     const m = L.circleMarker([it.lat,it.lng], {
@@ -73,8 +73,6 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
       const btn = el?.querySelector('.popup-btn');
       if (btn) {
         btn.addEventListener('click', () => {
-          // 先に追従開始（ユーザー操作の同期スタック内）
-          window.dispatchEvent(new Event('follow-request'));
           const dlat = Number(btn.getAttribute('data-lat'));
           const dlng = Number(btn.getAttribute('data-lng'));
           routeToOnMap(dlat, dlng);
