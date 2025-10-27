@@ -49,10 +49,9 @@ async function loadInitialData() {
   }
 }
 
-{/*───────────────────────────────────────────────*/
-───────────────────────────────
+/*───────────────────────────────────────────────*/
   共通UI・状態
-───────────────────────────────────────────────*/
+/*───────────────────────────────────────────────*/
 const chkYellow   = document.getElementById('chk-yellow');
 const chkGreen    = document.getElementById('chk-green');
 const refreshBtn  = document.getElementById('refreshBtn');
