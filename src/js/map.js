@@ -4,7 +4,6 @@ import { colorByStatus, radiusByCount } from './status.js';
 let MAP;
 let markersLayer;
 const markerByKey = new Map();
-let routeLayer = null;
 
 /** Map生成 */
 // ★ Jawg Sunny（ラスタ）＋ 京都だけ見える設定
@@ -57,28 +56,14 @@ export function drawMarkers(classifiedItems, { showYellow, showGreen }) {
         <strong>${it.name}</strong>
         <span class="tag ${tagClass}">${tagName}</span>
       </div>
-      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="popup-btn" data-lat="${it.lat}" data-lng="${it.lng}">JawgMAPで経路</button>
-        <a class="popup-btn link" href="https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=driving" target="_blank" rel="noopener">Googleマップ</a>
+      <div style="margin-top:10px">
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=driving" target="_blank" rel="noopener">車経路（GoogleMAP）</a>
       </div>`;
 
     const m = L.circleMarker([it.lat,it.lng], {
       radius: radiusByCount(it.count),
       color:'#fff', weight:1.4, fillColor: colorByStatus(s), fillOpacity:.92
     }).bindPopup(html, { autoPan:true, closeButton:true }).addTo(markersLayer);
-
-    // ポップアップが開いたらボタンにイベント付与
-    m.on('popupopen', (e) => {
-      const el = e.popup.getElement();
-      const btn = el?.querySelector('.popup-btn');
-      if (btn) {
-        btn.addEventListener('click', () => {
-          const dlat = Number(btn.getAttribute('data-lat'));
-          const dlng = Number(btn.getAttribute('data-lng'));
-          routeToOnMap(dlat, dlng);
-        }, { once: true });
-      }
-    });
 
     markerByKey.set(markerKey(it), m);
   }
