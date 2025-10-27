@@ -22,26 +22,32 @@ function showError(msg) {
 ───────────────────────────────────────────────*/
 async function loadInitialData() {
   try {
-    // data.json と error.json を並列で取得（data.json を優先採用）
-    const [dataRes, errRes] = await Promise.allSettled([
-      loadData(), 
-      fetch('./error.json', { cache: 'no-store' }).then(r=> r.ok ? r.json() : null)
-    ]);
-
-    const json = (dataRes.status === 'fulfilled') ? dataRes.value : null;
-    const err  = (errRes.status  === 'fulfilled') ? errRes.value : null;
-
-    // 1) data.json が正常で items あり → 正常描画（error.json は無視）
-    if (json && Array.isArray(json.items) && json.items.length > 0) {
-      window.__LATEST_JSON__ = json; // デバッグ用
-      return true;
+    // 1) error.json（任意）にエラー通知があるか先にチェック
+    const errRes = await fetch('./error.json', { cache: 'no-store' });
+    if (errRes.ok) {
+      const errData = await errRes.json();
+      if (errData && errData.error) {
+        showError(errData.message || "データ取得のエラーが確認されました。開発者に確認してください。");
+        return false;
+      }
     }
 
-    // 2) data.json 失敗 or 空 → error.json に従ってメッセージ表示
-    const message = (json && json.message) || (err && err.error && err.message) || 
-      "データ取得のエラーが確認されました。開発者に確認してください。";
-    showError(message);
-    return false;
+    // 2) 通常データ
+    const json = await loadData();
+    if (json && json.error) {
+      showError(json.message || "データ取得のエラーが確認されました。開発者に確認してください。");
+      return false;
+    }
+
+    // 3) 初期描画（一覧 → マーカー）
+    lastDataJsonText = JSON.stringify(json);
+    classified = classify(json.items);
+    setTableData(classified);
+    renderTable(); // setRowClickHandler を別で設定済みなので引数不要
+    drawMarkers(classified, viewFilter());
+    updateTime.textContent = latestUpdate(json.items);
+
+    return true;
   } catch (e) {
     console.error(e);
     showError("データの取得中にエラーが発生しました。開発者に確認してください。");
@@ -247,7 +253,6 @@ function bindMapStopFollow(){
 /*───────────────────────────────────────────────
   初期化（順序厳守）
 ───────────────────────────────────────────────*/
-window.addEventListener('follow-request', ()=>{ try{ startFollow(); }catch(_){} });
 async function init(){
   try {
     // 1) 地図初期化
@@ -257,8 +262,7 @@ async function init(){
     bindMapStopFollow();
 
     // 3) 起動時に現在地を一度だけセンタリング（ズームは+1段だけ任意）
-    // 初回の自動測位はUX/パフォ違反回避のため削除。ユーザー操作時に開始。
-// showMyLocationOnce({ center:true, gentleZoom:false });
+    showMyLocationOnce({ center:true, gentleZoom:false });
 
     // 一覧の行クリック → 地図パン＆ポップアップ
     setRowClickHandler((lat,lng,name)=> panToAndOpen(lat,lng,name));
