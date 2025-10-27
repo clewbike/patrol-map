@@ -22,32 +22,36 @@ function showError(msg) {
 ───────────────────────────────────────────────*/
 async function loadInitialData() {
   try {
-    // 1) error.json（任意）にエラー通知があるか先にチェック
-    const errRes = await fetch('./error.json', { cache: 'no-store' });
-    if (errRes.ok) {
-      const errData = await errRes.json();
-      if (errData && errData.error) {
-        showError(errData.message || "データ取得のエラーが確認されました。開発者に確認してください。");
-        return false;
+    // 1) error.json を参考までに読む（ただし "参考" 扱い）
+    let earlyErrorMsg = "";
+    try {
+      const errRes = await fetch('./error.json', { cache: 'no-store' });
+      if (errRes.ok) {
+        const errData = await errRes.json();
+        if (errData && errData.error) {
+          earlyErrorMsg = errData.message || "データ取得のエラーが確認されました。開発者に確認してください。";
+        }
       }
-    }
+    } catch(_){ /* ignore */ }
 
-    // 2) 通常データ
-    const json = await loadData();
-    if (json && json.error) {
-      showError(json.message || "データ取得のエラーが確認されました。開発者に確認してください。");
+    // 2) 通常データ（こちらを優先判定）
+    const json = await loadData().catch(()=>null);
+
+    if (!json || json.error) {
+      // data.json 自体が取得失敗 → error.json にメッセージがあれば表示、なければ汎用
+      showError(earlyErrorMsg || (json && json.message) || "データ取得のエラーが確認されました。開発者に確認してください。");
       return false;
     }
 
-    // 3) 初期描画（一覧 → マーカー）
-    lastDataJsonText = JSON.stringify(json);
-    classified = classify(json.items);
-    setTableData(classified);
-    renderTable(); // setRowClickHandler を別で設定済みなので引数不要
-    drawMarkers(classified, viewFilter());
-    updateTime.textContent = latestUpdate(json.items);
+    // items が取れていれば error.json の内容は無視して継続
+    if (!json.items || !Array.isArray(json.items) || json.items.length === 0){
+      // データが空のときのみ、error.json があれば出す
+      if (earlyErrorMsg) { showError(earlyErrorMsg); return false; }
+      showError("データが空でした。開発者に確認してください。");
+      return false;
+    }
 
-    return true;
+    // 3) 一覧＆マップへ反映（従来処理）
   } catch (e) {
     console.error(e);
     showError("データの取得中にエラーが発生しました。開発者に確認してください。");
