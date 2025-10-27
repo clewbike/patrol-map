@@ -234,7 +234,14 @@ function startFollow(){
     { enableHighAccuracy:true, maximumAge:5000 }
   );
 }
-btnLocate.addEventListener('click', startFollow);
+document.addEventListener('startFollow', startFollow);
+btnLocate.addEventListener('click', ()=>{
+  if (following){
+    following = false; updateFollowIcon(); stopWatch();
+  }else{
+    startFollow();
+  }
+});
 /* マップ操作で追従解除 */
 function bindMapStopFollow(){
   const MAP = getMap();
