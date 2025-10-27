@@ -209,20 +209,3 @@ html.no-hscroll,body.no-hscroll{overflow-x:hidden;overscroll-behavior-x:none;}
 }
 .leaflet-popup-content .popup-btn.link{ text-decoration:none; }
 .leaflet-popup-content .popup-btn:active{ transform:scale(.98); }
-
-
-/* 右上メニュー：ラベルボタン（白字＋明るめ背景／下線なし） */
-.label-btn{
-  display:inline-flex; align-items:center; gap:6px;
-  padding:8px 12px; border-radius:999px; border:1px solid transparent;
-  background:#5aa9ff; color:#fff; font-weight:700; text-decoration:none;
-  box-shadow:0 1px 2px rgba(0,0,0,.08);
-}
-.label-btn.warn{ background:#ff8a8a; color:#fff; }
-.label-btn:hover{ filter:brightness(1.05); }
-.label-btn:active{ transform:translateY(1px); }
-
-/* ラベル行の整列 */
-.links-block{ gap:10px; }
-.links-block a{ text-decoration:none; }
-.links-block > div{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
