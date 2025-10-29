@@ -296,7 +296,7 @@ async function init(){
       <h4><span class="tag tag-watch-green">経過観測</span></h4>
       <ul>
         <li>経過観測は巡回不要、起動時に標準で☑チェックなし</li>
-        <li>表示定義「電池比重 4未満 且つ 交換目安 2台」</li>
+        <li>表示定義「電池比重 4以下 且つ 交換目安 2台」</li>
       </ul>`;
     document.getElementById('tipAll').addEventListener('click', ()=>{
       tipBox.innerHTML=tipHtml; tipBackdrop.style.display='block'; tipBox.style.display='block';
