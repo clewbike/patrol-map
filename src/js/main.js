@@ -88,8 +88,8 @@ function classify(items){
   });
   setCounts(total);
 
-  // “赤40以上”なら、未操作時のみ黄/緑を既定OFF
-  if(total.urgent>=40){
+  // “赤30以上”なら、未操作時のみ黄/緑を既定OFF
+  if(total.urgent>=30){
     if(!userTouchedYellow) chkYellow.checked=false;
     if(!userTouchedGreen)  chkGreen.checked=false;
   }
@@ -288,15 +288,15 @@ async function init(){
       </ul>
       <h4><span class="tag tag-watch-yellow">交換可能</span></h4>
       <ul>
-        <li>交換可能ポートは基本的に交換必須「40件未満」で巡回</li>
+        <li>交換可能ポートは基本的に交換必須「30件未満」で巡回</li>
         <li>但し交換必須ポートの導線付近に限り現場判断で効率よく巡回をお願いいたします</li>
-        <li>交換必須「40件以上」なら起動時に☑チェックなし</li>
+        <li>交換必須「30件以上」なら起動時に☑チェックなし</li>
         <li>表示定義「電池比重 5」または「交換目安 2台以上」</li>
       </ul>
       <h4><span class="tag tag-watch-green">経過観測</span></h4>
       <ul>
         <li>経過観測は巡回不要、起動時に標準で☑チェックなし</li>
-        <li>表示定義「交換目安 2台」</li>
+        <li>表示定義「電池比重 4未満 且つ 交換目安 2台」</li>
       </ul>`;
     document.getElementById('tipAll').addEventListener('click', ()=>{
       tipBox.innerHTML=tipHtml; tipBackdrop.style.display='block'; tipBox.style.display='block';
