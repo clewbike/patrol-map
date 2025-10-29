@@ -288,9 +288,9 @@ async function init(){
       </ul>
       <h4><span class="tag tag-watch-yellow">交換可能</span></h4>
       <ul>
-        <li>交換可能ポートは基本的に交換必須「30件未満」で巡回</li>
+        <li>交換可能ポートは基本的に交換必須「10件未満」で巡回</li>
         <li>但し交換必須ポートの導線付近に限り現場判断で効率よく巡回をお願いいたします</li>
-        <li>交換必須「30件以上」なら起動時に☑チェックなし</li>
+        <li>交換必須「10件以上」なら起動時に☑チェックなし</li>
         <li>表示定義「電池比重 5 ～ 9」</li>
       </ul>
       <h4><span class="tag tag-watch-green">経過観測</span></h4>
