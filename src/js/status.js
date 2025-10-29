@@ -14,8 +14,8 @@ export function isAbandoned(name) {
  */
 export function statusOf(weight, count, name) {
   const w = Number(weight) || 0, c = Number(count) || 0;
-  if (w >= 6 || (c >= 3 && w >= 6) || isAbandoned(name)) return 'urgent';
-  if (c >= 3 || (c >= 2 && w === 5)) return 'watch-yellow';
+  if (w >= 10 || (c >= 3 && w >= 10) || isAbandoned(name)) return 'urgent';
+  if (c >= 3 || (c >= 2 && w >= 5 && w <= 9)) return 'watch-yellow';
   if (c >= 2) return 'watch-green';
   return null;
 }
