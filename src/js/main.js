@@ -89,7 +89,7 @@ function classify(items){
   setCounts(total);
 
   // “赤10以上”なら、未操作時のみ黄/緑を既定OFF
-  if(total.urgent>=90){
+  if(total.urgent>=80){
     if(!userTouchedYellow) chkYellow.checked=false;
     if(!userTouchedGreen)  chkGreen.checked=false;
   }
@@ -288,7 +288,7 @@ async function init(){
       </ul>
       <h4><span class="tag tag-watch-yellow">交換可能</span></h4>
       <ul>
-        <li>交換可能ポートは基本的に交換必須「10件未満」で巡回</li>
+        <li>交換可能ポートは基本的に交換必須「80件未満」で巡回</li>
         <li>但し交換必須ポートの導線付近に限り現場判断で効率よく巡回をお願いいたします</li>
         <li>交換必須「0件以上」なら起動時に☑チェックなし</li>
         <li>表示定義「電池比重 5 ～ 9」</li>
