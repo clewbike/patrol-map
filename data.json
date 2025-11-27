@@ -1,6 +1,15 @@
 {
-  "generated_at": "2025-11-27 14:37:39",
+  "generated_at": "2025-11-27 14:47:34",
   "items": [
+    {
+      "lat": null,
+      "lng": null,
+      "name": "KT524-ゲストハウス ソイ",
+      "address": "",
+      "updated": "2025-11-27 14:36:18",
+      "weight": 1,
+      "count": 1
+    },
     {
       "lat": 34.931906,
       "lng": 135.743911,
