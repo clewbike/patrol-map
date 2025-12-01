@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-12-02 00:02:49",
+  "generated_at": "2025-12-02 00:42:43",
   "items": [
     {
       "lat": 34.927294,
@@ -277,7 +277,7 @@
       "name": "KT281-上鳥羽北村山町",
       "address": "京都市南区上鳥羽北村山町66",
       "updated": "2025-12-01 23:36:03",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
@@ -322,7 +322,7 @@
       "name": "KT314-京都工業",
       "address": "京都市伏見区深草下横縄町15",
       "updated": "2025-12-01 23:36:03",
-      "weight": 12,
+      "weight": 17,
       "count": 4
     },
     {
@@ -448,7 +448,7 @@
       "name": "KT404-ドコモショップ桂店",
       "address": "京都市西京区桂西滝川町65",
       "updated": "2025-12-01 23:36:03",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
@@ -637,7 +637,7 @@
       "name": "KT139-Umekoji Potel Kyoto",
       "address": "京都市下京区観喜寺町15",
       "updated": "2025-12-01 23:36:03",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
@@ -2518,7 +2518,7 @@
       "name": "KT398-KYOTO HILLS 奥之院",
       "address": "京都市北区上賀茂東上之段町4",
       "updated": "2025-12-01 23:36:03",
-      "weight": 6,
+      "weight": 11,
       "count": 2
     },
     {
