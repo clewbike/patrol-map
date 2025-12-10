@@ -89,7 +89,7 @@ function classify(items){
   setCounts(total);
 
   // “赤10以上”なら、未操作時のみ黄/緑を既定OFF
-  if(total.urgent>=80){
+  if(total.urgent>=10){
     if(!userTouchedYellow) chkYellow.checked=false;
     if(!userTouchedGreen)  chkGreen.checked=false;
   }
