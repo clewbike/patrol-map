@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-26 23:37:41",
+  "generated_at": "2026-02-27 00:02:41",
   "items": [
     {
       "lat": 34.927294,
@@ -430,7 +430,7 @@
       "name": "KT263-阪急桂駅前(西口/南西)",
       "address": "京都市西京区川島有栖川町52",
       "updated": "2026-02-26 23:36:07",
-      "weight": 7,
+      "weight": 12,
       "count": 3
     },
     {
@@ -466,7 +466,7 @@
       "name": "KT097-CUBESUCRE KyotoStation",
       "address": "京都市南区東九条中御霊町52",
       "updated": "2026-02-26 23:36:07",
-      "weight": 6,
+      "weight": 11,
       "count": 2
     },
     {
