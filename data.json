@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-18 23:37:43",
+  "generated_at": "2026-03-19 00:02:44",
   "items": [
     {
       "lat": 34.927294,
@@ -187,7 +187,7 @@
       "name": "KT504-ダイエー 桂南店",
       "address": "京都市南区久世上久世町485",
       "updated": "2026-03-18 23:35:51",
-      "weight": 7,
+      "weight": 12,
       "count": 3
     },
     {
@@ -268,7 +268,7 @@
       "name": "KT403-京都信用金庫 東桂支店",
       "address": "京都市西京区川島東代町31-1",
       "updated": "2026-03-18 23:35:51",
-      "weight": 8,
+      "weight": 13,
       "count": 2
     },
     {
@@ -610,7 +610,7 @@
       "name": "KT312-LIBERTY SQUARE",
       "address": "京都市右京区西京極町ノ坪町10-1",
       "updated": "2026-03-18 23:35:51",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
@@ -1555,7 +1555,7 @@
       "name": "KT287-MODISH NIJO ENMACHI",
       "address": "京都市上京区堀川町526",
       "updated": "2026-03-18 23:35:51",
-      "weight": 7,
+      "weight": 12,
       "count": 3
     },
     {
@@ -1699,7 +1699,7 @@
       "name": "KT471-エバーコーヒー",
       "address": "京都市右京区宇多野福王子町45-2",
       "updated": "2026-03-18 23:35:51",
-      "weight": 7,
+      "weight": 12,
       "count": 3
     },
     {
