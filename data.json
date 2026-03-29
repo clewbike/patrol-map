@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-29 23:37:37",
+  "generated_at": "2026-03-30 00:02:37",
   "items": [
     {
       "lat": 34.926842,
@@ -889,7 +889,7 @@
       "name": "KT450-天使突抜町４丁目",
       "address": "京都市下京区東中筋通六条上る天使突抜四丁目459-3",
       "updated": "2026-03-29 23:36:07",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
@@ -2077,7 +2077,7 @@
       "name": "KT297-Whatever SHIMOGAMO EAST",
       "address": "京都市左京区高野蓼原町14-1",
       "updated": "2026-03-29 23:36:07",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
