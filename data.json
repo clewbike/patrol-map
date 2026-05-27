@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-27 23:42:47",
+  "generated_at": "2026-05-28 00:02:45",
   "items": [
     {
       "lat": 34.926842,
@@ -70,7 +70,7 @@
       "name": "KT535-パルセスイン京都",
       "address": "京都市伏見区下鳥羽東芹川町45番地",
       "updated": "2026-05-27 23:36:38",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
@@ -1150,7 +1150,7 @@
       "name": "KT322-8ART WORK STUDIO",
       "address": "京都市下京区室町通松原下る元両替町245-1",
       "updated": "2026-05-27 23:36:38",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
@@ -1177,7 +1177,7 @@
       "name": "KT321-More五条Ⅱ",
       "address": "京都市下京区藪下町6",
       "updated": "2026-05-27 23:36:38",
-      "weight": 6,
+      "weight": 11,
       "count": 2
     },
     {
@@ -1555,7 +1555,7 @@
       "name": "KT410-MODISH GION SHIRAKAWA",
       "address": "京都市東山区古門通大和大路東入三吉町2-336",
       "updated": "2026-05-27 23:36:38",
-      "weight": 6,
+      "weight": 11,
       "count": 2
     },
     {
@@ -1960,7 +1960,7 @@
       "name": "KT049-Royce花園",
       "address": "京都市右京区太秦安井小山町15-6",
       "updated": "2026-05-27 23:36:38",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
