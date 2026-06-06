@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-06 23:52:35",
+  "generated_at": "2026-06-07 00:02:39",
   "items": [
     {
       "lat": 34.926842,
@@ -268,7 +268,7 @@
       "name": "KT504-ダイエー 桂南店",
       "address": "京都市南区久世上久世町485",
       "updated": "2026-06-06 23:48:53",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
@@ -1438,7 +1438,7 @@
       "name": "KT059-Vine Oak Chrysanthemum",
       "address": "京都市中京区柳馬場通二条下る等持寺町32-1",
       "updated": "2026-06-06 23:48:53",
-      "weight": 8,
+      "weight": 13,
       "count": 2
     },
     {
