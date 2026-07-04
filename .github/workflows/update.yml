@@ -6,14 +6,19 @@ on:
   workflow_dispatch: {}   # 手動起動も残す
 
 permissions:
+  pages: write
+  id-token: write
   contents: write         # ← Actions に push 権限を付与（最小権限）
 
 concurrency:
-  group: update-data-json-main
+  group: pages
   cancel-in-progress: false
 
 jobs:
   build:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
@@ -63,3 +68,22 @@ jobs:
           fi
           git commit -m "Update data.json"
           git push origin HEAD:main
+
+      - name: Prepare static site
+        run: |
+          mkdir -p _site
+          cp index.html manifest.json robots.txt data.json error.json _site/
+          cp -R icons src docs _site/
+          touch _site/.nojekyll
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
