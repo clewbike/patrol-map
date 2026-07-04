@@ -16,7 +16,7 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: https://clewbike.github.io/patrol-map/
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -38,5 +38,24 @@ jobs:
           path: _site
 
       - name: Deploy to GitHub Pages
-        id: deployment
+        id: deploy_attempt_1
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+
+      - name: Wait before retry 1
+        if: steps.deploy_attempt_1.outcome == 'failure'
+        run: sleep 60
+
+      - name: Retry deploy to GitHub Pages
+        id: deploy_attempt_2
+        if: steps.deploy_attempt_1.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+
+      - name: Wait before retry 2
+        if: steps.deploy_attempt_1.outcome == 'failure' && steps.deploy_attempt_2.outcome == 'failure'
+        run: sleep 120
+
+      - name: Final deploy to GitHub Pages
+        if: steps.deploy_attempt_1.outcome == 'failure' && steps.deploy_attempt_2.outcome == 'failure'
         uses: actions/deploy-pages@v5
