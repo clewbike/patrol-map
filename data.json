@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-10 23:47:38",
+  "generated_at": "2026-07-11 00:02:38",
   "items": [
     {
       "lat": 34.926842,
@@ -1690,7 +1690,7 @@
       "name": "KT519-cafe Garage Kyoto(南側駐輪場)",
       "address": "京都市右京区嵯峨朝日町2-9",
       "updated": "2026-07-10 23:44:14",
-      "weight": 8,
+      "weight": 13,
       "count": 2
     },
     {
@@ -2041,7 +2041,7 @@
       "name": "KT064-Vine Oak Wisdom",
       "address": "京都市上京区小川通一条下る小川町203",
       "updated": "2026-07-10 23:44:14",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
@@ -2059,7 +2059,7 @@
       "name": "KT212-京都市宇多野ユースホステル",
       "address": "京都市右京区太秦中山町29",
       "updated": "2026-07-10 23:44:14",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
@@ -2239,7 +2239,7 @@
       "name": "KT297-Whatever SHIMOGAMO EAST",
       "address": "京都市左京区高野蓼原町14-1",
       "updated": "2026-07-10 23:44:14",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
