@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-14 23:47:41",
+  "generated_at": "2026-07-15 00:02:52",
   "items": [
     {
       "lat": 34.926842,
@@ -169,7 +169,7 @@
       "name": "KT411-MCY要M",
       "address": "京都市南区上鳥羽卯ノ花町20",
       "updated": "2026-07-14 23:44:33",
-      "weight": 6,
+      "weight": 11,
       "count": 2
     },
     {
@@ -358,7 +358,7 @@
       "name": "KT404-ドコモショップ桂店",
       "address": "京都市西京区桂西滝川町65",
       "updated": "2026-07-14 23:44:33",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
@@ -448,7 +448,7 @@
       "name": "KT183-Super-pouvoir★KYOTO",
       "address": "京都市南区九条町621-63",
       "updated": "2026-07-14 23:44:33",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
@@ -970,7 +970,7 @@
       "name": "KT060-Vine Oak Thirteen",
       "address": "京都市下京区烏丸通松原上る因幡堂町699",
       "updated": "2026-07-14 23:44:33",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
@@ -1807,7 +1807,7 @@
       "name": "KT474-はるかぜガーデン御前",
       "address": "京都市上京区西東町339",
       "updated": "2026-07-14 23:44:33",
-      "weight": 5,
+      "weight": 10,
       "count": 1
     },
     {
